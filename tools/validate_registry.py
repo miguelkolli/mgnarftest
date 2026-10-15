@@ -9,7 +9,7 @@ MANIFESTS = sorted(ROOT.glob("tests/*/*/manifest.json"))
 HEX40 = re.compile(r"^[0-9a-f]{40}$")
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 ID_RE = re.compile(r"^MGTEST-[A-Z0-9]+-[A-Z0-9-]+-[0-9]{3}$")
-STATUSES = {"PROPOSED", "REVIEW-A", "REVIEW-B", "STABLE", "BLOCKED", "REJECTED", "NEEDS-REVISION"}
+STATUSES = {"PROPOSED", "REVIEW-A", "REVIEW-B", "STABLE", "BLOCKED", "REJECTED", "NEEDS-REVISION", "RETIRED"}
 RESULTS = {"PASS", "FAIL", "BLOCKED", "UNVERIFIED", "LIMITATION_CONFIRMED"}
 
 
