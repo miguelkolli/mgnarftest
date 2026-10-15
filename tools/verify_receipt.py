@@ -3,16 +3,14 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 HEX40 = re.compile(r"^[0-9a-f]{40}$")
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
-TARGET_REPOSITORY = "miguelkolli/mgnarf"
-TARGET_RELEASE = "v1.70"
-TARGET_SHA = "b811a13eab9cacd9f922b1f15097aa6bf700fc01"
-MGTEST_REPOSITORY = "miguelkolli/mgnarftest"
+REGISTRY_REPOSITORY = "miguelkolli/mgnarftest"
 
 
 def die(message: str) -> None:
@@ -55,8 +53,7 @@ def main() -> int:
     unsigned = dict(receipt)
     unsigned.pop("receipt_sha256", None)
     canonical = json.dumps(unsigned, sort_keys=True, separators=(",", ":")).encode()
-    actual_hash = hashlib.sha256(canonical).hexdigest()
-    if actual_hash != claimed_hash:
+    if hashlib.sha256(canonical).hexdigest() != claimed_hash:
         die("receipt_sha256 mismatch")
 
     test = require_dict(receipt, "test")
@@ -66,18 +63,33 @@ def main() -> int:
         die("invalid test.id")
     if not isinstance(version, int) or isinstance(version, bool) or version < 1:
         die("invalid test.version")
+
     test_dir = ROOT / "tests" / test_id / f"v{version}"
-    manifest = test_dir / "manifest.json"
-    test_file = test_dir / "test.py"
-    if not manifest.is_file() or not test_file.is_file():
-        die("bound manifest/test file missing")
-    if test.get("manifest_sha256") != sha256_file(manifest):
+    manifest_path = test_dir / "manifest.json"
+    if not manifest_path.is_file():
+        die("bound manifest missing")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("test_id") != test_id or manifest.get("test_version") != version:
+        die("manifest identity/version mismatch")
+
+    raw_entrypoint = (manifest.get("execution") or {}).get("entrypoint")
+    if not isinstance(raw_entrypoint, str):
+        die("manifest execution.entrypoint missing")
+    argv = shlex.split(raw_entrypoint)
+    if len(argv) != 2 or argv[0] not in {"python", "python3"}:
+        die("manifest entrypoint is unsupported")
+    test_file = ROOT / argv[1]
+    expected_test_file = test_dir / "test.py"
+    if test_file.resolve() != expected_test_file.resolve() or not test_file.is_file():
+        die("bound test file missing or unexpected")
+
+    if test.get("manifest_sha256") != sha256_file(manifest_path):
         die("manifest hash mismatch")
     if test.get("test_sha256") != sha256_file(test_file):
         die("test hash mismatch")
 
     mgtest = require_dict(receipt, "mgtest")
-    if mgtest.get("repository") != MGTEST_REPOSITORY:
+    if mgtest.get("repository") != REGISTRY_REPOSITORY:
         die("wrong MGnarfTest repository")
     subject_sha = mgtest.get("commit")
     if not isinstance(subject_sha, str) or not HEX40.fullmatch(subject_sha):
@@ -87,12 +99,25 @@ def main() -> int:
         die("MGnarfTest commit does not match expected exact head")
 
     target = require_dict(receipt, "target")
-    if target.get("repository") != TARGET_REPOSITORY or target.get("release") != TARGET_RELEASE or target.get("commit") != TARGET_SHA:
-        die("wrong target binding")
+    manifest_target = manifest.get("target") or {}
+    for key in ("repository", "release", "commit"):
+        if target.get(key) != manifest_target.get(key):
+            die(f"target.{key} does not match manifest")
 
     execution = require_dict(receipt, "execution")
     if execution.get("provider") != "github-actions" or execution.get("result") != "PASS":
         die("invalid execution provider/result")
+    isolation = require_dict(execution, "isolation")
+    expected_isolation = {
+        "network": "none",
+        "rootfs": "read-only",
+        "capabilities": "drop-all",
+        "no_new_privileges": True,
+        "user": "65534:65534",
+    }
+    if isolation != expected_isolation:
+        die("isolation contract mismatch")
+
     run_id = str(execution.get("run_id", "")).strip()
     if not run_id.isdigit():
         die("invalid run_id")
