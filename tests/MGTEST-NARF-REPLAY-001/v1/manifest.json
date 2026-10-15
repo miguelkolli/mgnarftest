@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "test_id": "MGTEST-NARF-REPLAY-001",
+  "test_version": 1,
+  "status": "PROPOSED",
+  "target": {
+    "project": "MGnarf",
+    "repository": "miguelkolli/mgnarf",
+    "release": "v1.70",
+    "commit": "b811a13eab9cacd9f922b1f15097aa6bf700fc01"
+  },
+  "purpose": "Attempt to replay one authenticated operation across two fresh contracts that share the same operation_id.",
+  "expected": {
+    "allowed_results": [
+      "PASS",
+      "FAIL",
+      "BLOCKED",
+      "UNVERIFIED"
+    ],
+    "safe_condition": "The first authorized effect may execute, but a second fresh contract with the same operation_id must be rejected before causing a second effect."
+  },
+  "execution": {
+    "entrypoint": "python3 tests/MGTEST-NARF-REPLAY-001/v1/test.py",
+    "network": false,
+    "privileges": "none",
+    "external_dependencies": []
+  },
+  "limits": [
+    "This test measures same-operation replay resistance through the MGnarf v1.70 operation-bound effect path at the exact frozen target commit.",
+    "It does not prove distributed multi-host consensus, PostgreSQL fencing, crash recovery, or verifier epistemic independence."
+  ],
+  "review": {
+    "author": "miguelkolli",
+    "reviewer_a": null,
+    "reviewer_b": null,
+    "accepted_commit": null
+  },
+  "evidence": {
+    "result": "UNVERIFIED",
+    "run_id": null,
+    "artifact_hash": null,
+    "receipt_sha256": null,
+    "mgtest_commit": null,
+    "target_commit": null
+  }
+}
