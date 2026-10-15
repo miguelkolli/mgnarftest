@@ -26,8 +26,15 @@ jobs:
       - name: Verify trusted base SHA
         run: test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.base.sha }}"
 
-      - name: Compile trusted promotion verifier
-        run: python3 -m py_compile tools/verify_stable_promotion_pr.py
+      - name: Compile trusted trust-root and promotion verifiers
+        run: |
+          python3 -m py_compile tools/enforce_trust_root.py
+          python3 -m py_compile tools/verify_stable_promotion_pr.py
+
+      - name: Enforce current repository trust-root authority
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 tools/enforce_trust_root.py
 
       - name: Verify STABLE promotion using trusted base code
         env:

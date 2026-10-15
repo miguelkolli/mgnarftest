@@ -28,6 +28,21 @@ As observed on 2026-10-15 for the private `miguelkolli/mgnarftest` repository:
 
 Therefore MGnarfTest must **not** claim that its trusted base branch is independently tamper-proof or that direct administrative mutation of `main` is technically impossible.
 
+## Machine-enforced current state
+
+The trusted `pull_request_target` workflow runs `tools/enforce_trust_root.py` from the exact base SHA before the STABLE promotion verifier.
+
+Current constants are deliberately fail-closed:
+
+```text
+TRUST_ROOT_STATUS = UNVERIFIED
+STABLE_PROMOTION_ENABLED = false
+```
+
+A normal PROPOSED/DEV pull request is allowed to continue. A pull request whose head requests `status=STABLE` is blocked before STABLE evidence/review acceptance while this trust-root state remains unresolved.
+
+This lock prevents accidental STABLE acceptance through the normal workflow. It is not a substitute for protected `main`: an administrator capable of directly replacing trusted base code could also replace the lock. That is the unresolved external authority boundary.
+
 ## Security consequence
 
 The STABLE promotion workflow correctly uses `pull_request_target`, checks out the exact base SHA and never executes promotion-PR code. However, that protection ultimately trusts the verifier and workflow already present on `main`.
@@ -40,19 +55,20 @@ Current classification:
 development / execution evidence     PASS-capable
 receipt / tamper controls            PASS-capable
 trusted promotion implementation     PASS-capable
+normal STABLE promotion              BLOCKED
 protected-main trust root             UNVERIFIED
 strong tamper-proof STABLE claim      BLOCKED
 ```
 
 No external test is currently `STABLE`.
 
-## Required before a strong STABLE trust claim
+## Required before enabling STABLE promotion
 
 Use at least one independently enforceable trust-root control, for example:
 
 1. GitHub branch/ruleset protection on `main` requiring pull requests and the required checks, with direct/force pushes restricted; or
 2. a separately governed trusted control-plane repository/authority whose policy cannot be modified by the same unreviewed path as the test proposal.
 
-When such a control is enabled, record the exact enforcement configuration and evidence before changing the trust-root classification.
+Then record the exact enforcement configuration and evidence, change the trust-root classification to VERIFIED, enable STABLE promotion, and run the trusted control-plane tests before accepting any STABLE manifest.
 
 NARF rule: unavailable or unverifiable authority is not converted into PASS.
