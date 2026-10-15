@@ -235,7 +235,8 @@ def main() -> int:
     if not token or not event_path or repo != REGISTRY_REPOSITORY:
         die("required trusted GitHub context missing")
 
-    event = json.load(open(event_path, encoding="utf-8"))
+    with open(event_path, encoding="utf-8") as event_file:
+        event = json.load(event_file)
     pr = event.get("pull_request")
     if not isinstance(pr, dict):
         die("event has no pull_request")
