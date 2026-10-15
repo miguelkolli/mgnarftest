@@ -9,6 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 RUNNABLE_STATUSES = {"PROPOSED", "REVIEW-A", "REVIEW-B", "STABLE"}
 REGISTRY_REPOSITORY = "miguelkolli/mgnarftest"
+PINNED_IMAGE = "python:3.12-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1"
 
 
 def die(message: str) -> None:
@@ -66,6 +67,7 @@ def main() -> int:
     run_id = os.environ.get("GITHUB_RUN_ID", "").strip()
     run_attempt = os.environ.get("GITHUB_RUN_ATTEMPT", "").strip()
     repository = os.environ.get("GITHUB_REPOSITORY", "").strip()
+    image = os.environ.get("MGNARFTEST_PYTHON_IMAGE", "").strip()
 
     if len(subject_sha) != 40:
         die("MGTEST_SHA must be exact 40-hex SHA")
@@ -73,6 +75,8 @@ def main() -> int:
         die("wrong repository context")
     if not run_id.isdigit():
         die("missing/invalid GITHUB_RUN_ID")
+    if image != PINNED_IMAGE:
+        die("container image does not match pinned immutable digest")
 
     paths = manifest_paths(sys.argv[1:])
     if not paths:
@@ -111,6 +115,7 @@ def main() -> int:
                 "run_id": run_id,
                 "run_attempt": run_attempt,
                 "result": "PASS",
+                "container_image": image,
                 "isolation": {
                     "network": "none",
                     "rootfs": "read-only",

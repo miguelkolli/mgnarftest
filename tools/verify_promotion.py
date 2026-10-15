@@ -12,6 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY_REPOSITORY = "miguelkolli/mgnarftest"
 REGISTRY_WORKFLOW_PATH = ".github/workflows/registry-validate.yml"
+PINNED_IMAGE = "python:3.12-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1"
 
 
 def die(message: str) -> None:
@@ -170,6 +171,8 @@ def main() -> int:
             die(f"{path}: receipt result is not PASS")
         if str(execution.get("run_id")) != run_id:
             die(f"{path}: receipt run_id mismatch")
+        if execution.get("container_image") != PINNED_IMAGE:
+            die(f"{path}: receipt container image binding mismatch")
         isolation = execution.get("isolation") or {}
         if isolation != {
             "network": "none",

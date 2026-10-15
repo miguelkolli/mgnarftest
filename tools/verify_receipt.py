@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 HEX40 = re.compile(r"^[0-9a-f]{40}$")
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 REGISTRY_REPOSITORY = "miguelkolli/mgnarftest"
+PINNED_IMAGE = "python:3.12-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1"
 
 
 def die(message: str) -> None:
@@ -107,6 +108,8 @@ def main() -> int:
     execution = require_dict(receipt, "execution")
     if execution.get("provider") != "github-actions" or execution.get("result") != "PASS":
         die("invalid execution provider/result")
+    if execution.get("container_image") != PINNED_IMAGE:
+        die("container image binding mismatch")
     isolation = require_dict(execution, "isolation")
     expected_isolation = {
         "network": "none",
