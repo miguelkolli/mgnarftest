@@ -248,25 +248,31 @@ def main() -> int:
     files = changed_files(repo, number, token)
     changed_manifests = []
     for filename in files:
-        if MANIFEST_RE.fullmatch(filename):
-            head = json_repo_file(repo, head_sha, filename, token)
-            if head.get("status") == "STABLE":
-                changed_manifests.append((filename, head))
+        if not MANIFEST_RE.fullmatch(filename):
+            continue
+        head = json_repo_file(repo, head_sha, filename, token)
+        base = json_repo_file(repo, base_sha, filename, token)
+        if base.get("status") == "STABLE":
+            die(
+                f"{filename}: existing STABLE manifest is immutable; "
+                "use a dedicated trusted retirement transition"
+            )
+        if head.get("status") == "STABLE":
+            changed_manifests.append((filename, head, base))
 
     if not changed_manifests:
         print("MGNARFTEST TRUSTED PROMOTION: SKIP - no STABLE transition requested")
         return 0
 
     allowed = {"REGISTRY.md"}
-    allowed.update(path for path, _ in changed_manifests)
+    allowed.update(path for path, _, _ in changed_manifests)
     unexpected = sorted(set(files) - allowed)
     if unexpected:
         die(f"STABLE promotion PR contains non-promotion changes: {unexpected}")
 
     authors = set()
     promoted = []
-    for path, head in changed_manifests:
-        base = json_repo_file(repo, base_sha, path, token)
+    for path, head, base in changed_manifests:
         evidence = head.get("evidence") or {}
         subject_sha = evidence.get("mgtest_commit")
         if not isinstance(subject_sha, str) or not HEX40.fullmatch(subject_sha):

@@ -47,6 +47,12 @@ The promotion PR may change only the promoted manifest(s) plus `REGISTRY.md`. It
 
 The trusted STABLE gate executes verifier code from the base branch and reads the promotion head through the GitHub API. It never executes code from the promotion PR.
 
+## STABLE immutability
+
+Once a manifest is `STABLE` on the base branch, an ordinary development or promotion PR may not modify it or move it back to another lifecycle state. This closes downgrade/demotion paths that would otherwise bypass the trusted promotion checks.
+
+Retirement is intentionally not implemented as `STABLE -> RETIRED` through the normal development path. A future retirement mechanism must be its own trusted transition with explicit authority and evidence.
+
 ## IDs and versions
 
 Recommended ID: `MGTEST-<PROJECT>-<AREA>-NNN`.
@@ -55,4 +61,4 @@ Increment `test_version` when attack logic, expected condition, evidence interpr
 
 ## Fail closed
 
-Harness errors, missing dependencies, missing evidence, skipped required paths, invalid or structurally ambiguous manifests, duplicate IDs/versions, PR-only execution evidence, results outside the frozen allowed set or incomplete STABLE authorization are never automatically PASS.
+Harness errors, missing dependencies, missing evidence, skipped required paths, invalid or structurally ambiguous manifests, duplicate IDs/versions, PR-only execution evidence, results outside the frozen allowed set, attempted STABLE downgrade or incomplete STABLE authorization are never automatically PASS.

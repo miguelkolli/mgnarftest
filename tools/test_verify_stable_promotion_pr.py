@@ -39,6 +39,7 @@ class TrustedPromotionVerifierTests(unittest.TestCase):
                 "network": False,
                 "privileges": "none",
                 "external_dependencies": [],
+                "timeout_seconds": 30,
             },
             "limits": ["This fixture only exercises promotion-gate policy semantics."],
             "review": {
@@ -131,6 +132,33 @@ class TrustedPromotionVerifierTests(unittest.TestCase):
     def test_non_stable_development_skips(self):
         result = self.run_main(files=["schema/mgtest-manifest-v1.schema.json"])
         self.assertEqual(result, 0)
+
+    def test_non_stable_manifest_development_skips(self):
+        proposed = self.base_manifest()
+        result = self.run_main(files=[self.MANIFEST_PATH], head=proposed, base=proposed)
+        self.assertEqual(result, 0)
+
+    def test_existing_stable_manifest_cannot_be_demoted(self):
+        with self.assertRaises(SystemExit) as ctx:
+            self.run_main(
+                files=[self.MANIFEST_PATH],
+                head=self.base_manifest(),
+                base=self.stable_manifest(),
+            )
+        self.assertEqual(ctx.exception.code, 1)
+        self.assertIn("existing STABLE manifest is immutable", str(ctx.exception))
+
+    def test_existing_stable_manifest_cannot_be_modified_in_place(self):
+        head = self.stable_manifest()
+        head["review"]["reviewer_a"] = "different-reviewer"
+        with self.assertRaises(SystemExit) as ctx:
+            self.run_main(
+                files=[self.MANIFEST_PATH],
+                head=head,
+                base=self.stable_manifest(),
+            )
+        self.assertEqual(ctx.exception.code, 1)
+        self.assertIn("existing STABLE manifest is immutable", str(ctx.exception))
 
     def test_mixed_code_and_stable_promotion_fails_closed(self):
         with self.assertRaises(SystemExit) as ctx:
