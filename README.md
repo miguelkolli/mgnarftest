@@ -26,15 +26,17 @@ A test result must bind to an exact MGnarf commit. `main` alone is never suffici
 DEV / PROPOSED
   -> executable test
   -> exact target SHA
-  -> CI execution
+  -> isolated CI execution
   -> bound receipt
   -> receipt verification
   -> tamper rejection
-  -> evidence artifact
+  -> merge PROPOSED test to main
+  -> successful main push evidence
 
-STABLE promotion
-  -> verified subject evidence
-  -> promotion commit
+STABLE promotion (separate PR)
+  -> no test/workflow/tool changes
+  -> reference successful main-push receipt artifact
+  -> trusted base-branch promotion verifier
   -> authenticated review A
   -> authenticated review B
   -> STABLE
@@ -42,8 +44,10 @@ STABLE promotion
 
 Two-review enforcement applies to STABLE promotion, not normal development.
 
+The STABLE gate uses verifier code from the trusted base branch. It does **not** execute the promotion PR's code. A PR-generated receipt cannot be used as STABLE evidence; the evidence must come from a successful `main` push run for the exact tested subject commit.
+
 ## Current status
 
-Repository bootstrap is in progress. No external test is STABLE yet.
+Two external tests are currently `PROPOSED`. No external test is `STABLE` yet.
 
 NARF principle: **no PASS without executed evidence; no STABLE test without frozen identity, target, receipt and review evidence.**

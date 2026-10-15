@@ -52,8 +52,7 @@ jobs:
             tools/run_registry.py \
             tools/generate_receipt.py \
             tools/verify_receipt.py \
-            tools/verify_promotion.py \
-            tools/verify_pr_reviews.py
+            tools/verify_stable_promotion_pr.py
           find tests -type f -name 'test.py' -print0 | xargs -0 -r python3 -m py_compile
 
       - name: Verify container runtime

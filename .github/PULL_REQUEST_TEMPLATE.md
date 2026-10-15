@@ -1,10 +1,15 @@
 ## MGnarfTest submission
 
+### Change type
+
+- [ ] DEV / PROPOSED test development
+- [ ] STABLE promotion only
+
 ### Test identity
 
 - Test ID:
 - Test version:
-- Current status: `PROPOSED`
+- Current/requested status:
 
 ### Exact target
 
@@ -20,36 +25,34 @@ Describe the failure mode, attack, invariant, or boundary.
 
 State the expected safe behavior **before** interpreting run results.
 
-### Execution
+### Execution / evidence
 
 - Entrypoint/command:
-- Required OS/runtime:
 - Required privileges:
 - Network required: yes/no
-- External services/databases:
-
-### Evidence
-
-- Result: `PASS` / `FAIL` / `BLOCKED` / `UNVERIFIED` / `LIMITATION_CONFIRMED`
-- Run/workflow reference:
-- Artifact/hash reference:
+- Main-push run ID (required for STABLE):
+- Artifact SHA-256 (required for STABLE):
+- Receipt SHA-256 (required for STABLE):
+- Tested MGnarfTest subject SHA (required for STABLE):
 
 ### Limits
 
 What does this test explicitly **not** prove?
 
-### Author declaration
+### DEV declaration
 
-- [ ] I am the author/submitter of this exact PR head.
-- [ ] I do not count myself as Review A or Review B.
-- [ ] A missing/skipped/unexecutable required path is not represented as PASS.
-- [ ] Material test changes will invalidate existing approvals.
+- [ ] Missing/skipped/unexecutable required paths are not represented as PASS.
+- [ ] Material test changes will create a new test version when required.
 
-### Review gate
+### STABLE promotion declaration
 
-Stable acceptance requires both:
+For a STABLE promotion:
 
-- [ ] Review A — authenticated GitHub approval from an identity different from the author.
-- [ ] Review B — authenticated GitHub approval from an identity different from both the author and Review A.
+- [ ] The test already exists on `main` as non-STABLE.
+- [ ] Evidence comes from a successful `main` push, not a PR run.
+- [ ] This PR changes only the promoted manifest(s) and `REGISTRY.md`.
+- [ ] `review.promotion_pr` equals this GitHub PR number.
+- [ ] Review A and Review B are authenticated approvals on the exact current PR head.
+- [ ] Test author/promotion author do not count toward the two approvals.
 
-Do not merge as `STABLE` until both reviews apply to the exact current PR head and all required validation checks pass.
+Do not merge as STABLE until the trusted base-branch promotion gate passes.
