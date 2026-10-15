@@ -18,7 +18,7 @@ Exact stable source commit:
 b811a13eab9cacd9f922b1f15097aa6bf700fc01
 ```
 
-A test result must bind to an exact MGnarf commit. `main` alone is never sufficient evidence. The registry runner now prepares each runnable manifest's exact target independently, so future MGnarf releases can coexist without sharing a moving checkout.
+A test result must bind to an exact MGnarf commit. `main` alone is never sufficient evidence. The registry runner prepares each runnable manifest's exact target independently, so future MGnarf releases can coexist without sharing a moving checkout.
 
 ## Development versus STABLE
 
@@ -48,12 +48,12 @@ The STABLE gate uses verifier code from the trusted base branch. It does **not**
 
 ## Trust-root status
 
-Repository-local execution, receipt and promotion controls are evidence-tested. The private repository's protected-`main` trust root is **not currently independently verified** through the available GitHub controls, so MGnarfTest does not claim that the trusted base branch is tamper-proof.
+Repository-local execution, receipt and promotion controls are evidence-tested. GitHub branch metadata currently reports `main` as **unprotected**, so MGnarfTest deliberately blocks STABLE promotion and does not claim that the trusted base branch is tamper-proof.
 
 See [TRUST-BOUNDARY.md](TRUST-BOUNDARY.md) for the exact limitation and the requirements for a stronger STABLE trust claim.
 
 ## Current status
 
-Two external tests are currently `PROPOSED`. No external test is `STABLE` yet.
+Three external tests are currently `PROPOSED`: stage ordering, same-operation replay resistance, and builder/verifier identity separation. No external test is `STABLE` yet.
 
-NARF principle: **no PASS without executed evidence; no STABLE test without frozen identity, target, receipt and review evidence.**
+NARF principle: **no PASS without executed evidence; no STABLE test without frozen identity, target, receipt, review evidence and an enforceable repository trust root.**

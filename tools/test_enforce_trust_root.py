@@ -46,19 +46,19 @@ class TrustRootGuardTests(unittest.TestCase):
              mock.patch.object(guard, "json_repo_file", return_value={"status": "PROPOSED"}):
             self.assertEqual(guard.main(), 0)
 
-    def test_unverified_trust_root_blocks_stable_promotion(self):
+    def test_unprotected_trust_root_blocks_stable_promotion(self):
         stderr = io.StringIO()
         with self.context(), \
              mock.patch.object(guard, "changed_files", return_value=[self.MANIFEST_PATH]), \
              mock.patch.object(guard, "json_repo_file", return_value={"status": "STABLE"}), \
              mock.patch.object(guard, "STABLE_PROMOTION_ENABLED", False), \
-             mock.patch.object(guard, "TRUST_ROOT_STATUS", "UNVERIFIED"), \
+             mock.patch.object(guard, "TRUST_ROOT_STATUS", "UNPROTECTED"), \
              redirect_stderr(stderr):
             with self.assertRaises(SystemExit) as ctx:
                 guard.main()
         self.assertEqual(ctx.exception.code, 1)
         self.assertIn("STABLE promotion disabled", stderr.getvalue())
-        self.assertIn("UNVERIFIED", stderr.getvalue())
+        self.assertIn("UNPROTECTED", stderr.getvalue())
 
     def test_verified_enabled_trust_root_allows_stable_promotion(self):
         with self.context(), \
