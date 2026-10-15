@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "test_id": "MGTEST-NARF-COVERAGE-001",
+  "test_version": 1,
+  "status": "PROPOSED",
+  "target": {
+    "project": "MGnarf",
+    "repository": "miguelkolli/mgnarf",
+    "release": "v1.70",
+    "commit": "b811a13eab9cacd9f922b1f15097aa6bf700fc01"
+  },
+  "purpose": "Verify that every distinct frozen requirement must produce accepted evidence before PASS and that duplicate or unknown executions cannot substitute for missing coverage.",
+  "expected": {
+    "allowed_results": ["PASS", "FAIL", "BLOCKED", "UNVERIFIED"],
+    "safe_condition": "Missing frozen evidence must remain INCOMPLETE_EVIDENCE/BLOCKED; duplicate or unknown requirement execution must not increase coverage; exact distinct full coverage may proceed."
+  },
+  "execution": {
+    "entrypoint": "python3 tests/MGTEST-NARF-COVERAGE-001/v1/test.py",
+    "network": false,
+    "privileges": "none",
+    "external_dependencies": [],
+    "timeout_seconds": 30
+  },
+  "limits": [
+    "This test measures frozen requirement coverage accounting in MGnarf v1.70 at the exact target commit.",
+    "It does not establish that a PASS result from each valid verifier is substantively correct."
+  ],
+  "review": {
+    "author": "miguelkolli",
+    "reviewer_a": null,
+    "reviewer_b": null,
+    "promotion_pr": null
+  },
+  "evidence": {
+    "result": "UNVERIFIED",
+    "run_id": null,
+    "artifact_hash": null,
+    "receipt_sha256": null,
+    "mgtest_commit": null,
+    "target_commit": null
+  }
+}
