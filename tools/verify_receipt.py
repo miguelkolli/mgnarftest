@@ -36,7 +36,6 @@ def require_dict(obj, key):
 def main() -> int:
     if len(sys.argv) != 2:
         die("usage: verify_receipt.py <receipt.json>")
-
     path = Path(sys.argv[1])
     if not path.is_file():
         die("receipt file missing")
@@ -44,10 +43,8 @@ def main() -> int:
         receipt = json.loads(path.read_text(encoding="utf-8"))
     except Exception as exc:
         die(f"invalid JSON: {exc}")
-
     if receipt.get("schema_version") != 1:
         die("schema_version must be 1")
-
     claimed_hash = receipt.get("receipt_sha256")
     if not isinstance(claimed_hash, str) or not HEX64.fullmatch(claimed_hash):
         die("invalid receipt_sha256")
@@ -64,7 +61,6 @@ def main() -> int:
         die("invalid test.id")
     if not isinstance(version, int) or isinstance(version, bool) or version < 1:
         die("invalid test.version")
-
     test_dir = ROOT / "tests" / test_id / f"v{version}"
     manifest_path = test_dir / "manifest.json"
     if not manifest_path.is_file():
@@ -72,18 +68,14 @@ def main() -> int:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if manifest.get("test_id") != test_id or manifest.get("test_version") != version:
         die("manifest identity/version mismatch")
-
     raw_entrypoint = (manifest.get("execution") or {}).get("entrypoint")
-    if not isinstance(raw_entrypoint, str):
-        die("manifest execution.entrypoint missing")
-    argv = shlex.split(raw_entrypoint)
+    argv = shlex.split(raw_entrypoint) if isinstance(raw_entrypoint, str) else []
     if len(argv) != 2 or argv[0] not in {"python", "python3"}:
         die("manifest entrypoint is unsupported")
     test_file = ROOT / argv[1]
     expected_test_file = test_dir / "test.py"
     if test_file.resolve() != expected_test_file.resolve() or not test_file.is_file():
         die("bound test file missing or unexpected")
-
     if test.get("manifest_sha256") != sha256_file(manifest_path):
         die("manifest hash mismatch")
     if test.get("test_sha256") != sha256_file(test_file):
@@ -110,14 +102,11 @@ def main() -> int:
         die("invalid execution provider/result")
     if execution.get("container_image") != PINNED_IMAGE:
         die("container image binding mismatch")
+    manifest_timeout = (manifest.get("execution") or {}).get("timeout_seconds")
+    if execution.get("timeout_seconds") != manifest_timeout:
+        die("timeout_seconds binding mismatch")
     isolation = require_dict(execution, "isolation")
-    expected_isolation = {
-        "network": "none",
-        "rootfs": "read-only",
-        "capabilities": "drop-all",
-        "no_new_privileges": True,
-        "user": "65534:65534",
-    }
+    expected_isolation = {"network": "none", "rootfs": "read-only", "capabilities": "drop-all", "no_new_privileges": True, "user": "65534:65534"}
     if isolation != expected_isolation:
         die("isolation contract mismatch")
 
@@ -127,7 +116,6 @@ def main() -> int:
     expected_run_id = os.environ.get("GITHUB_RUN_ID", "").strip()
     if expected_run_id and run_id != expected_run_id:
         die("run_id does not match current GitHub Actions run")
-
     print(f"MGNARFTEST RECEIPT VERIFY: PASS - {path}")
     print(f"receipt_sha256={claimed_hash}")
     return 0

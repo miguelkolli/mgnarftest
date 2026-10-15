@@ -23,7 +23,8 @@
     "entrypoint": "python3 tests/MGTEST-NARF-REPLAY-001/v1/test.py",
     "network": false,
     "privileges": "none",
-    "external_dependencies": []
+    "external_dependencies": [],
+    "timeout_seconds": 30
   },
   "limits": [
     "This test measures same-operation replay resistance through the MGnarf v1.70 operation-bound effect path at the exact frozen target commit.",

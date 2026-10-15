@@ -37,12 +37,13 @@
     },
     "execution": {
       "type": "object",
-      "required": ["entrypoint", "network", "privileges", "external_dependencies"],
+      "required": ["entrypoint", "network", "privileges", "external_dependencies", "timeout_seconds"],
       "properties": {
         "entrypoint": {"type": "string", "minLength": 1},
         "network": {"type": "boolean"},
         "privileges": {"type": "string", "minLength": 1},
-        "external_dependencies": {"type": "array", "items": {"type": "string"}}
+        "external_dependencies": {"type": "array", "items": {"type": "string"}},
+        "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 300}
       },
       "additionalProperties": false
     },

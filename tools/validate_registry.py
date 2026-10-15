@@ -11,6 +11,7 @@ HEX64 = re.compile(r"^[0-9a-f]{64}$")
 ID_RE = re.compile(r"^MGTEST-[A-Z0-9]+-[A-Z0-9-]+-[0-9]{3}$")
 STATUSES = {"PROPOSED", "REVIEW-A", "REVIEW-B", "STABLE", "BLOCKED", "REJECTED", "NEEDS-REVISION", "RETIRED"}
 RESULTS = {"PASS", "FAIL", "BLOCKED", "UNVERIFIED", "LIMITATION_CONFIRMED"}
+MAX_TIMEOUT_SECONDS = 300
 
 
 def fail(path: Path, message: str) -> None:
@@ -65,12 +66,20 @@ def validate(path: Path) -> tuple[str, int]:
         fail(path, "expected.safe_condition is too short")
 
     execution = require(data, "execution", path)
-    for key in ("entrypoint", "network", "privileges", "external_dependencies"):
+    for key in ("entrypoint", "network", "privileges", "external_dependencies", "timeout_seconds"):
         require(execution, key, path)
     if not isinstance(execution["network"], bool):
         fail(path, "execution.network must be boolean")
     if not isinstance(execution["external_dependencies"], list):
         fail(path, "execution.external_dependencies must be a list")
+    timeout_seconds = execution["timeout_seconds"]
+    if (
+        not isinstance(timeout_seconds, int)
+        or isinstance(timeout_seconds, bool)
+        or timeout_seconds < 1
+        or timeout_seconds > MAX_TIMEOUT_SECONDS
+    ):
+        fail(path, f"execution.timeout_seconds must be integer 1..{MAX_TIMEOUT_SECONDS}")
 
     limits = require(data, "limits", path)
     if not isinstance(limits, list) or not limits:

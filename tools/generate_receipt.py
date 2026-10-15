@@ -25,10 +25,7 @@ def sha256_file(path: Path) -> str:
 
 
 def load_manifest(path: Path) -> dict:
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except Exception as exc:
-        die(f"{path}: invalid manifest JSON: {exc}")
+    data = json.loads(path.read_text(encoding="utf-8"))
     test_id = data.get("test_id")
     version = data.get("test_version")
     expected = ROOT / "tests" / str(test_id) / f"v{version}" / "manifest.json"
@@ -41,9 +38,7 @@ def load_manifest(path: Path) -> dict:
 
 def test_file_for(manifest: dict) -> Path:
     raw = (manifest.get("execution") or {}).get("entrypoint")
-    if not isinstance(raw, str):
-        die("execution.entrypoint missing")
-    argv = shlex.split(raw)
+    argv = shlex.split(raw) if isinstance(raw, str) else []
     if len(argv) != 2 or argv[0] not in {"python", "python3"}:
         die("entrypoint must be exactly 'python3 <test.py>'")
     test_file = ROOT / argv[1]
@@ -56,10 +51,7 @@ def test_file_for(manifest: dict) -> Path:
 def manifest_paths(argv: list[str]) -> list[Path]:
     if argv:
         return [Path(item) if Path(item).is_absolute() else ROOT / item for item in argv]
-    return [
-        path for path in sorted(ROOT.glob("tests/*/*/manifest.json"))
-        if json.loads(path.read_text(encoding="utf-8")).get("status") in RUNNABLE_STATUSES
-    ]
+    return [path for path in sorted(ROOT.glob("tests/*/*/manifest.json")) if json.loads(path.read_text(encoding="utf-8")).get("status") in RUNNABLE_STATUSES]
 
 
 def main() -> int:
@@ -68,73 +60,43 @@ def main() -> int:
     run_attempt = os.environ.get("GITHUB_RUN_ATTEMPT", "").strip()
     repository = os.environ.get("GITHUB_REPOSITORY", "").strip()
     image = os.environ.get("MGNARFTEST_PYTHON_IMAGE", "").strip()
-
-    if len(subject_sha) != 40:
-        die("MGTEST_SHA must be exact 40-hex SHA")
-    if repository != REGISTRY_REPOSITORY:
-        die("wrong repository context")
-    if not run_id.isdigit():
-        die("missing/invalid GITHUB_RUN_ID")
-    if image != PINNED_IMAGE:
-        die("container image does not match pinned immutable digest")
+    if len(subject_sha) != 40 or repository != REGISTRY_REPOSITORY or not run_id.isdigit() or image != PINNED_IMAGE:
+        die("invalid execution context")
 
     paths = manifest_paths(sys.argv[1:])
     if not paths:
         die("no runnable manifests")
-
     out = ROOT / "evidence"
     out.mkdir(exist_ok=True)
     created = 0
-
     for manifest_path in paths:
         manifest = load_manifest(manifest_path)
         test_file = test_file_for(manifest)
         target = manifest.get("target") or {}
+        execution_manifest = manifest.get("execution") or {}
         test_id = manifest["test_id"]
         version = manifest["test_version"]
-
         receipt = {
             "schema_version": 1,
-            "test": {
-                "id": test_id,
-                "version": version,
-                "manifest_sha256": sha256_file(manifest_path),
-                "test_sha256": sha256_file(test_file),
-            },
-            "mgtest": {
-                "repository": repository,
-                "commit": subject_sha,
-            },
-            "target": {
-                "repository": target.get("repository"),
-                "release": target.get("release"),
-                "commit": target.get("commit"),
-            },
+            "test": {"id": test_id, "version": version, "manifest_sha256": sha256_file(manifest_path), "test_sha256": sha256_file(test_file)},
+            "mgtest": {"repository": repository, "commit": subject_sha},
+            "target": {"repository": target.get("repository"), "release": target.get("release"), "commit": target.get("commit")},
             "execution": {
                 "provider": "github-actions",
                 "run_id": run_id,
                 "run_attempt": run_attempt,
                 "result": "PASS",
                 "container_image": image,
-                "isolation": {
-                    "network": "none",
-                    "rootfs": "read-only",
-                    "capabilities": "drop-all",
-                    "no_new_privileges": True,
-                    "user": "65534:65534",
-                },
+                "timeout_seconds": execution_manifest.get("timeout_seconds"),
+                "isolation": {"network": "none", "rootfs": "read-only", "capabilities": "drop-all", "no_new_privileges": True, "user": "65534:65534"},
             },
         }
-
         canonical = json.dumps(receipt, sort_keys=True, separators=(",", ":")).encode()
         receipt["receipt_sha256"] = hashlib.sha256(canonical).hexdigest()
-
         output = out / f"{test_id}-v{version}-{run_id}.json"
         output.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         print(f"MGNARFTEST RECEIPT: PASS - {output.relative_to(ROOT)}")
-        print(f"receipt_sha256={receipt['receipt_sha256']}")
         created += 1
-
     print(f"MGNARFTEST RECEIPT: PASS - {created} receipt(s)")
     return 0
 

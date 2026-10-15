@@ -50,15 +50,19 @@ jobs:
           python3 -m py_compile \
             tools/validate_registry.py \
             tools/run_registry.py \
+            tools/test_run_registry.py \
             tools/generate_receipt.py \
             tools/verify_receipt.py \
             tools/verify_stable_promotion_pr.py \
             tools/test_verify_stable_promotion_pr.py
           find tests -type f -name 'test.py' -print0 | xargs -0 -r python3 -m py_compile
 
-      - name: Test trusted STABLE promotion verifier
+      - name: Test trusted control-plane verifiers
         working-directory: mgnarftest
-        run: python3 -m unittest -v tools.test_verify_stable_promotion_pr
+        run: |
+          python3 -m unittest -v \
+            tools.test_run_registry \
+            tools.test_verify_stable_promotion_pr
 
       - name: Verify container runtime
         run: docker version --format '{{.Server.Version}}'
@@ -103,7 +107,7 @@ jobs:
           import json
           p = '/tmp/tampered.json'
           d = json.load(open(p))
-          d['target']['commit'] = '0000000000000000000000000000000000000000'
+          d['execution']['timeout_seconds'] = 999
           json.dump(d, open(p, 'w'))
           PY
           if python3 tools/verify_receipt.py /tmp/tampered.json; then

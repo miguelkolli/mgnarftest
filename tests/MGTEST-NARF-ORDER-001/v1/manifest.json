@@ -18,7 +18,8 @@
     "entrypoint": "python3 tests/MGTEST-NARF-ORDER-001/v1/test.py",
     "network": false,
     "privileges": "none",
-    "external_dependencies": []
+    "external_dependencies": [],
+    "timeout_seconds": 30
   },
   "limits": [
     "This test measures the MGnarf v1.70 in-process stage-order boundary at the exact frozen target commit.",
