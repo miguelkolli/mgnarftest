@@ -1,7 +1,7 @@
 name: MGnarfTest stable-promotion review gate
 
 on:
-  pull_request:
+  pull_request_target:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
   pull_request_review:
@@ -13,69 +13,23 @@ permissions:
   pull-requests: read
 
 jobs:
-  detect-stable-promotion:
+  trusted-promotion-gate:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    outputs:
-      stable_requested: ${{ steps.detect.outputs.stable_requested }}
     steps:
-      - name: Checkout exact PR head
+      - name: Checkout trusted base harness
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          persist-credentials: false
-          fetch-depth: 0
-
-      - name: Verify exact PR head SHA
-        run: test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
-
-      - name: Detect STABLE manifest state
-        id: detect
-        shell: bash
-        run: |
-          set -euo pipefail
-          if grep -R --include='manifest.json' -Eq '"status"[[:space:]]*:[[:space:]]*"STABLE"' tests/; then
-            echo "stable_requested=true" >> "$GITHUB_OUTPUT"
-            echo "STABLE promotion detected"
-          else
-            echo "stable_requested=false" >> "$GITHUB_OUTPUT"
-            echo "No STABLE promotion requested; development flow is allowed"
-          fi
-
-  review-gate:
-    needs: detect-stable-promotion
-    if: github.event.pull_request.draft == false && needs.detect-stable-promotion.outputs.stable_requested == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout exact PR head
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.base.sha }}
           persist-credentials: false
 
-      - name: Verify exact PR head SHA
-        run: test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+      - name: Verify trusted base SHA
+        run: test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.base.sha }}"
 
-      - name: Compile promotion and review verifiers
-        run: |
-          python3 -m py_compile tools/verify_promotion.py
-          python3 -m py_compile tools/verify_pr_reviews.py
+      - name: Compile trusted promotion verifier
+        run: python3 -m py_compile tools/verify_stable_promotion_pr.py
 
-      - name: Verify STABLE evidence against published receipt artifact
+      - name: Verify STABLE promotion using trusted base code
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          PROMOTION_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: python3 tools/verify_promotion.py
-
-      - name: Verify two authenticated exact-head approvals
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: python3 tools/verify_pr_reviews.py
-
-  development-flow:
-    needs: detect-stable-promotion
-    if: github.event.pull_request.draft == false && needs.detect-stable-promotion.outputs.stable_requested != 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Allow non-STABLE development
-        run: echo "MGnarfTest development flow allowed; promotion evidence and two-review gates activate only for STABLE promotion."
+        run: python3 tools/verify_stable_promotion_pr.py

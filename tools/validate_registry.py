@@ -77,7 +77,7 @@ def validate(path: Path) -> tuple[str, int]:
         fail(path, "at least one explicit limitation is required")
 
     review = require(data, "review", path)
-    for key in ("author", "reviewer_a", "reviewer_b", "accepted_commit"):
+    for key in ("author", "reviewer_a", "reviewer_b", "promotion_pr"):
         require(review, key, path)
 
     evidence = require(data, "evidence", path)
@@ -90,17 +90,17 @@ def validate(path: Path) -> tuple[str, int]:
         author = review["author"]
         a = review["reviewer_a"]
         b = review["reviewer_b"]
-        accepted = review["accepted_commit"]
+        promotion_pr = review["promotion_pr"]
         if not all(isinstance(v, str) and v.strip() for v in (author, a, b)):
             fail(path, "STABLE requires author, reviewer_a and reviewer_b identities")
         if len({author, a, b}) != 3:
             fail(path, "STABLE requires three distinct identities")
-        if not isinstance(accepted, str) or not HEX40.fullmatch(accepted):
-            fail(path, "STABLE requires exact review.accepted_commit promotion SHA")
+        if not isinstance(promotion_pr, int) or isinstance(promotion_pr, bool) or promotion_pr < 1:
+            fail(path, "STABLE requires positive integer review.promotion_pr")
         if evidence["result"] != "PASS":
             fail(path, "STABLE requires PASS execution evidence")
-        if not isinstance(evidence["run_id"], str) or not evidence["run_id"].strip():
-            fail(path, "STABLE requires evidence.run_id")
+        if not isinstance(evidence["run_id"], str) or not evidence["run_id"].isdigit():
+            fail(path, "STABLE requires numeric-string evidence.run_id")
         if not isinstance(evidence["artifact_hash"], str) or not HEX64.fullmatch(evidence["artifact_hash"]):
             fail(path, "STABLE requires 64-hex evidence.artifact_hash")
         if not isinstance(evidence["receipt_sha256"], str) or not HEX64.fullmatch(evidence["receipt_sha256"]):
@@ -112,8 +112,8 @@ def validate(path: Path) -> tuple[str, int]:
         if evidence["target_commit"] != target["commit"]:
             fail(path, "STABLE evidence.target_commit must equal target.commit")
     else:
-        if review["accepted_commit"] is not None:
-            fail(path, "non-STABLE manifest must not set review.accepted_commit")
+        if review["promotion_pr"] is not None:
+            fail(path, "non-STABLE manifest must not set review.promotion_pr")
         for key in ("artifact_hash", "receipt_sha256", "mgtest_commit", "target_commit"):
             if evidence[key] is not None:
                 fail(path, f"non-STABLE manifest must not set evidence.{key}")
