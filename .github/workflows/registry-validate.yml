@@ -1,0 +1,92 @@
+name: MGnarfTest registry validate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, "bootstrap/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout MGnarfTest exact event commit
+        uses: actions/checkout@v4
+        with:
+          path: mgnarftest
+          persist-credentials: false
+
+      - name: Checkout exact MGnarf v1.70 target
+        uses: actions/checkout@v4
+        with:
+          repository: miguelkolli/mgnarf
+          ref: b811a13eab9cacd9f922b1f15097aa6bf700fc01
+          path: target-mgnarf
+          persist-credentials: false
+
+      - name: Verify exact MGnarf target SHA
+        run: |
+          test "$(git -C target-mgnarf rev-parse HEAD)" = "b811a13eab9cacd9f922b1f15097aa6bf700fc01"
+
+      - name: Python version
+        run: python3 --version
+
+      - name: Validate registry manifests
+        working-directory: mgnarftest
+        run: python3 tools/validate_registry.py
+
+      - name: Compile registry validator, receipt tools and external test
+        working-directory: mgnarftest
+        run: |
+          python3 -m py_compile tools/validate_registry.py
+          python3 -m py_compile tools/generate_receipt.py
+          python3 -m py_compile tools/verify_receipt.py
+          python3 -m py_compile tests/MGTEST-NARF-ORDER-001/v1/test.py
+
+      - name: Run MGTEST-NARF-ORDER-001/v1 against exact target
+        working-directory: mgnarftest
+        env:
+          PYTHONPATH: ${{ github.workspace }}/target-mgnarf/src
+        run: python3 tests/MGTEST-NARF-ORDER-001/v1/test.py
+
+      - name: Generate bound execution receipt
+        working-directory: mgnarftest
+        env:
+          MGTEST_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python3 tools/generate_receipt.py
+
+      - name: Verify bound execution receipt
+        working-directory: mgnarftest
+        env:
+          MGTEST_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python3 tools/verify_receipt.py evidence/MGTEST-NARF-ORDER-001-v1-${{ github.run_id }}.json
+
+      - name: Tamper check must fail closed
+        working-directory: mgnarftest
+        env:
+          MGTEST_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          cp evidence/MGTEST-NARF-ORDER-001-v1-${{ github.run_id }}.json /tmp/tampered.json
+          python3 - <<'PY'
+          import json
+          p = '/tmp/tampered.json'
+          d = json.load(open(p))
+          d['target']['commit'] = '0000000000000000000000000000000000000000'
+          json.dump(d, open(p, 'w'))
+          PY
+          if python3 tools/verify_receipt.py /tmp/tampered.json; then
+            echo "Tampered receipt was accepted"
+            exit 1
+          fi
+          echo "Tampered receipt rejected as required"
+
+      - name: Upload execution evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: mgnarftest-evidence-${{ github.run_id }}
+          path: mgnarftest/evidence/*.json
+          if-no-files-found: error
+          retention-days: 30
