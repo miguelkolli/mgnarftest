@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "test_id": "MGTEST-NARF-MIDINHIBITOR-001",
+  "test_version": 1,
+  "status": "PROPOSED",
+  "target": {
+    "project": "MGnarf",
+    "repository": "miguelkolli/mgnarf",
+    "release": "v1.70",
+    "commit": "b811a13eab9cacd9f922b1f15097aa6bf700fc01"
+  },
+  "purpose": "Verify that an inhibitor introduced during verifier execution dominates otherwise valid PASS evidence before final decision and effect execution.",
+  "expected": {
+    "allowed_results": ["PASS", "FAIL", "BLOCKED", "UNVERIFIED"],
+    "safe_condition": "A trusted inhibitor introduced while a verifier producer is executing must block the session and protected effect even when that verifier's authenticated receipt remains PASS; an otherwise identical uninhibited control may proceed."
+  },
+  "execution": {
+    "entrypoint": "python3 tests/MGTEST-NARF-MIDINHIBITOR-001/v1/test.py",
+    "network": false,
+    "privileges": "none",
+    "external_dependencies": [],
+    "timeout_seconds": 30
+  },
+  "limits": [
+    "This test measures MGnarf v1.70 inhibitor dominance when inhibit() is invoked during one synchronous verifier producer call at the exact target commit.",
+    "MGnarf v1.70 treats inhibitors as verdict/effect controls rather than verifier-receipt state errors, so this test intentionally permits the individual verifier receipt to remain PASS while the session is BLOCKED."
+  ],
+  "review": {
+    "author": "miguelkolli",
+    "reviewer_a": null,
+    "reviewer_b": null,
+    "promotion_pr": null
+  },
+  "evidence": {
+    "result": "UNVERIFIED",
+    "run_id": null,
+    "artifact_hash": null,
+    "receipt_sha256": null,
+    "mgtest_commit": null,
+    "target_commit": null
+  }
+}
