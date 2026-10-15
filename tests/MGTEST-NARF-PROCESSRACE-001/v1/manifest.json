@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "test_id": "MGTEST-NARF-PROCESSRACE-001",
+  "test_version": 1,
+  "status": "PROPOSED",
+  "target": {
+    "project": "MGnarf",
+    "repository": "miguelkolli/mgnarf",
+    "release": "v1.70",
+    "commit": "b811a13eab9cacd9f922b1f15097aa6bf700fc01"
+  },
+  "purpose": "Verify atomic at-most-once protected-effect consumption across independent OS processes sharing one receipt store and frozen contract.",
+  "expected": {
+    "allowed_results": ["PASS", "FAIL", "BLOCKED", "UNVERIFIED"],
+    "safe_condition": "Eight independent processes may each establish authenticated PASS for the same frozen contract, but simultaneous effect attempts against one shared receipt filesystem must produce exactly one durable effect receipt and one callback; all other processes and a later fresh session must fail closed."
+  },
+  "execution": {
+    "entrypoint": "python3 tests/MGTEST-NARF-PROCESSRACE-001/v1/test.py",
+    "network": false,
+    "privileges": "none",
+    "external_dependencies": [],
+    "timeout_seconds": 30
+  },
+  "limits": [
+    "This test measures multiple Linux processes inside one isolated container sharing one local MGnarf v1.70 ReceiptStore filesystem at the exact target commit.",
+    "It does not prove multi-host or distributed-filesystem exactly-once semantics; independent hosts require a shared external consumption/fencing authority with suitable atomicity guarantees."
+  ],
+  "review": {
+    "author": "miguelkolli",
+    "reviewer_a": null,
+    "reviewer_b": null,
+    "promotion_pr": null
+  },
+  "evidence": {
+    "result": "UNVERIFIED",
+    "run_id": null,
+    "artifact_hash": null,
+    "receipt_sha256": null,
+    "mgtest_commit": null,
+    "target_commit": null
+  }
+}
