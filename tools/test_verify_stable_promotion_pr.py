@@ -1,0 +1,187 @@
+#!/usr/bin/env python3
+import copy
+import json
+import os
+import tempfile
+import unittest
+from unittest import mock
+
+from tools import verify_stable_promotion_pr as gate
+
+
+class TrustedPromotionVerifierTests(unittest.TestCase):
+    PR_NUMBER = 7
+    HEAD_SHA = "h" * 40
+    BASE_SHA = "b" * 40
+    SUBJECT_SHA = "c" * 40
+    TARGET_SHA = "d" * 40
+    MANIFEST_PATH = "tests/MGTEST-NARF-ORDER-001/v1/manifest.json"
+
+    def base_manifest(self):
+        return {
+            "schema_version": 1,
+            "test_id": "MGTEST-NARF-ORDER-001",
+            "test_version": 1,
+            "status": "PROPOSED",
+            "target": {
+                "project": "MGnarf",
+                "repository": "miguelkolli/mgnarf",
+                "release": "v1.70",
+                "commit": self.TARGET_SHA,
+            },
+            "purpose": "Exercise a frozen external security invariant.",
+            "expected": {
+                "allowed_results": ["PASS", "FAIL", "BLOCKED", "UNVERIFIED"],
+                "safe_condition": "The protected boundary must reject the frozen attack condition.",
+            },
+            "execution": {
+                "entrypoint": "python3 tests/MGTEST-NARF-ORDER-001/v1/test.py",
+                "network": False,
+                "privileges": "none",
+                "external_dependencies": [],
+            },
+            "limits": ["This fixture only exercises promotion-gate policy semantics."],
+            "review": {
+                "author": "miguelkolli",
+                "reviewer_a": None,
+                "reviewer_b": None,
+                "promotion_pr": None,
+            },
+            "evidence": {
+                "result": "UNVERIFIED",
+                "run_id": None,
+                "artifact_hash": None,
+                "receipt_sha256": None,
+                "mgtest_commit": None,
+                "target_commit": None,
+            },
+        }
+
+    def stable_manifest(self, promotion_pr=None):
+        data = copy.deepcopy(self.base_manifest())
+        data["status"] = "STABLE"
+        data["review"] = {
+            "author": "miguelkolli",
+            "reviewer_a": "reviewer-a",
+            "reviewer_b": "reviewer-b",
+            "promotion_pr": self.PR_NUMBER if promotion_pr is None else promotion_pr,
+        }
+        data["evidence"] = {
+            "result": "PASS",
+            "run_id": "123",
+            "artifact_hash": "a" * 64,
+            "receipt_sha256": "e" * 64,
+            "mgtest_commit": self.SUBJECT_SHA,
+            "target_commit": self.TARGET_SHA,
+        }
+        return data
+
+    def event_file(self):
+        event = {
+            "pull_request": {
+                "number": self.PR_NUMBER,
+                "head": {"sha": self.HEAD_SHA},
+                "base": {"sha": self.BASE_SHA},
+                "user": {"login": "promoter"},
+            }
+        }
+        handle = tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False)
+        json.dump(event, handle)
+        handle.close()
+        self.addCleanup(lambda: os.path.exists(handle.name) and os.unlink(handle.name))
+        return handle.name
+
+    def run_main(self, *, files, head=None, base=None, subject=None, approvals=None, verify=True):
+        head = head or self.stable_manifest()
+        base = base or self.base_manifest()
+        subject = subject or self.base_manifest()
+        event_path = self.event_file()
+
+        def repo_manifest(_repo, sha, _path, _token):
+            if sha == self.HEAD_SHA:
+                return copy.deepcopy(head)
+            if sha == self.BASE_SHA:
+                return copy.deepcopy(base)
+            if sha == self.SUBJECT_SHA:
+                return copy.deepcopy(subject)
+            raise AssertionError(f"unexpected SHA: {sha}")
+
+        patches = [
+            mock.patch.dict(
+                os.environ,
+                {
+                    "GITHUB_TOKEN": "test-token",
+                    "GITHUB_EVENT_PATH": event_path,
+                    "GITHUB_REPOSITORY": gate.REGISTRY_REPOSITORY,
+                },
+                clear=False,
+            ),
+            mock.patch.object(gate, "changed_files", return_value=list(files)),
+            mock.patch.object(gate, "json_repo_file", side_effect=repo_manifest),
+            mock.patch.object(gate, "latest_approvals", return_value=set(approvals or set())),
+        ]
+        if verify:
+            patches.append(mock.patch.object(gate, "verify_evidence", return_value=None))
+
+        for patcher in patches:
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        return gate.main()
+
+    def test_non_stable_development_skips(self):
+        result = self.run_main(files=["schema/mgtest-manifest-v1.schema.json"])
+        self.assertEqual(result, 0)
+
+    def test_mixed_code_and_stable_promotion_fails_closed(self):
+        with self.assertRaises(SystemExit) as ctx:
+            self.run_main(files=[self.MANIFEST_PATH, "tests/MGTEST-NARF-ORDER-001/v1/test.py"])
+        self.assertEqual(ctx.exception.code, 1)
+
+    def test_wrong_promotion_pr_fails_closed(self):
+        with self.assertRaises(SystemExit) as ctx:
+            self.run_main(files=[self.MANIFEST_PATH], head=self.stable_manifest(promotion_pr=99))
+        self.assertEqual(ctx.exception.code, 1)
+
+    def test_missing_second_exact_head_approval_fails_closed(self):
+        with self.assertRaises(SystemExit) as ctx:
+            self.run_main(files=[self.MANIFEST_PATH], approvals={"reviewer-a"})
+        self.assertEqual(ctx.exception.code, 1)
+
+    def test_pr_run_evidence_is_rejected(self):
+        manifest = self.stable_manifest()
+
+        def fake_api_get(url, _token):
+            if "/compare/" in url:
+                return {"merge_base_commit": {"sha": self.SUBJECT_SHA}}
+            if url.endswith("/actions/runs/123"):
+                return {
+                    "status": "completed",
+                    "conclusion": "success",
+                    "event": "pull_request",
+                    "head_branch": "dev/attacker",
+                    "head_sha": self.SUBJECT_SHA,
+                    "path": gate.REGISTRY_WORKFLOW_PATH,
+                }
+            raise AssertionError(f"unexpected URL: {url}")
+
+        with mock.patch.object(gate, "api_get", side_effect=fake_api_get):
+            with self.assertRaises(SystemExit) as ctx:
+                gate.verify_evidence(
+                    gate.REGISTRY_REPOSITORY,
+                    self.BASE_SHA,
+                    self.MANIFEST_PATH,
+                    manifest,
+                    "test-token",
+                )
+        self.assertEqual(ctx.exception.code, 1)
+
+    def test_valid_simulated_promotion_passes(self):
+        result = self.run_main(
+            files=[self.MANIFEST_PATH, "REGISTRY.md"],
+            approvals={"reviewer-a", "reviewer-b"},
+        )
+        self.assertEqual(result, 0)
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

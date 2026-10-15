@@ -52,8 +52,13 @@ jobs:
             tools/run_registry.py \
             tools/generate_receipt.py \
             tools/verify_receipt.py \
-            tools/verify_stable_promotion_pr.py
+            tools/verify_stable_promotion_pr.py \
+            tools/test_verify_stable_promotion_pr.py
           find tests -type f -name 'test.py' -print0 | xargs -0 -r python3 -m py_compile
+
+      - name: Test trusted STABLE promotion verifier
+        working-directory: mgnarftest
+        run: python3 -m unittest -v tools.test_verify_stable_promotion_pr
 
       - name: Verify container runtime
         run: docker version --format '{{.Server.Version}}'
