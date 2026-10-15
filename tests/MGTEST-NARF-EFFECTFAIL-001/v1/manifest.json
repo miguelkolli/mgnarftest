@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "test_id": "MGTEST-NARF-EFFECTFAIL-001",
+  "test_version": 1,
+  "status": "PROPOSED",
+  "target": {
+    "project": "MGnarf",
+    "repository": "miguelkolli/mgnarf",
+    "release": "v1.70",
+    "commit": "b811a13eab9cacd9f922b1f15097aa6bf700fc01"
+  },
+  "purpose": "Verify that a protected-effect callback failure consumes effect authority before callback entry and cannot be retried into duplicate execution.",
+  "expected": {
+    "allowed_results": ["PASS", "FAIL", "BLOCKED", "UNVERIFIED"],
+    "safe_condition": "After an authenticated PASS, if the protected-effect callback starts and then fails, the same effect authority must remain consumed so same-session and cross-session retries cannot re-enter the callback; an ordinary successful callback may execute once."
+  },
+  "execution": {
+    "entrypoint": "python3 tests/MGTEST-NARF-EFFECTFAIL-001/v1/test.py",
+    "network": false,
+    "privileges": "none",
+    "external_dependencies": [],
+    "timeout_seconds": 30
+  },
+  "limits": [
+    "This test measures MGnarf v1.70 at-most-once effect consumption around a failing callback at the exact target commit.",
+    "It does not prove transactional rollback, exactly-once delivery, or recovery of external side effects performed by the callback before it failed."
+  ],
+  "review": {
+    "author": "miguelkolli",
+    "reviewer_a": null,
+    "reviewer_b": null,
+    "promotion_pr": null
+  },
+  "evidence": {
+    "result": "UNVERIFIED",
+    "run_id": null,
+    "artifact_hash": null,
+    "receipt_sha256": null,
+    "mgtest_commit": null,
+    "target_commit": null
+  }
+}
