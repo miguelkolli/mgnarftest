@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json
 import os
+import re
 import shlex
 import subprocess
 from pathlib import Path
@@ -10,6 +11,7 @@ RUNNABLE_STATUSES = {"PROPOSED", "REVIEW-A", "REVIEW-B", "STABLE"}
 EXPECTED_TARGET_REPOSITORY = "miguelkolli/mgnarf"
 PINNED_IMAGE = "python:3.12-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1"
 MAX_TIMEOUT_SECONDS = 300
+HEX40 = re.compile(r"^[0-9a-f]{40}$")
 
 
 def die(message: str) -> None:
@@ -74,6 +76,20 @@ def execution_contract(path: Path, manifest: dict) -> tuple[list[str], int]:
     return ["python3", expected.as_posix()], timeout_seconds
 
 
+def target_source_for(workspace: Path, path: Path, manifest: dict) -> Path:
+    target = manifest.get("target") or {}
+    repository = target.get("repository")
+    commit = target.get("commit")
+    if repository != EXPECTED_TARGET_REPOSITORY:
+        die(f"{path.relative_to(ROOT)}: unsupported target repository")
+    if not isinstance(commit, str) or not HEX40.fullmatch(commit):
+        die(f"{path.relative_to(ROOT)}: target commit must be exact lowercase 40-hex SHA")
+    target_source = workspace / "targets" / commit / "src"
+    if not target_source.is_dir():
+        die(f"{path.relative_to(ROOT)}: prepared exact target source missing for {commit}")
+    return target_source
+
+
 def run_container(command: list[str], container_name: str, timeout_seconds: int) -> None:
     try:
         result = subprocess.run(command, check=False, timeout=timeout_seconds)
@@ -92,37 +108,29 @@ def run_container(command: list[str], container_name: str, timeout_seconds: int)
 
 def main() -> int:
     workspace = Path(os.environ.get("GITHUB_WORKSPACE", "")).resolve()
-    target_sha = os.environ.get("MGNARF_TARGET_SHA", "").strip()
     image = os.environ.get("MGNARFTEST_PYTHON_IMAGE", "").strip()
     run_id = os.environ.get("GITHUB_RUN_ID", "local").strip() or "local"
 
     if not workspace.is_dir():
         die("GITHUB_WORKSPACE is missing")
-    if len(target_sha) != 40:
-        die("MGNARF_TARGET_SHA must be an exact 40-hex SHA")
     if image != PINNED_IMAGE:
         die("container image does not match pinned immutable digest")
 
     registry_mount = workspace / "mgnarftest"
-    target_mount = workspace / "target-mgnarf" / "src"
-    if not registry_mount.is_dir() or not target_mount.is_dir():
-        die("registry or target source checkout is missing")
+    if not registry_mount.is_dir():
+        die("registry checkout is missing")
 
     count = 0
     for path, manifest in load_manifests():
-        target = manifest.get("target") or {}
-        if target.get("repository") != EXPECTED_TARGET_REPOSITORY:
-            die(f"{path.relative_to(ROOT)}: unsupported target repository")
-        if target.get("commit") != target_sha:
-            die(f"{path.relative_to(ROOT)}: target commit does not match checked-out exact target")
-
+        target_mount = target_source_for(workspace, path, manifest)
+        target_sha = (manifest.get("target") or {})["commit"]
         result_contract(path, manifest)
         argv, timeout_seconds = execution_contract(path, manifest)
         test_name = f"{manifest['test_id']}/v{manifest['test_version']}"
         safe_id = manifest["test_id"].lower().replace("_", "-")
         container_name = f"mgnarftest-{safe_id}-v{manifest['test_version']}-{run_id}"[:120]
         print(
-            f"MGNARFTEST RUNNER: START - {test_name} timeout={timeout_seconds}s",
+            f"MGNARFTEST RUNNER: START - {test_name} target={target_sha} timeout={timeout_seconds}s",
             flush=True,
         )
 

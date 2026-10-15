@@ -27,6 +27,18 @@ test_id + test_version
 
 `review.promotion_pr` means the separate GitHub pull-request number that requests STABLE acceptance. The exact reviewed head SHA is intentionally **not embedded in the manifest**, because embedding a commit's own SHA would create a self-referential hash cycle. GitHub's authenticated review history is the authority for the exact approved promotion head.
 
+## Exact target preparation
+
+The workflow does not select a single global MGnarf version. Each runnable manifest supplies its own exact `target.commit`.
+
+Before any external test executes, `tools/prepare_targets.py` collects the unique runnable target SHAs, accepts only repository `miguelkolli/mgnarf`, fetches each exact 40-hex commit without using a branch as evidence identity, verifies `HEAD` equals the requested SHA, and prepares:
+
+```text
+targets/<exact-sha>/src
+```
+
+The isolated runner then mounts only the matching manifest target source read-only at `/target-src`. Tests targeting different MGnarf releases therefore cannot silently share a moving checkout. Duplicate manifests for the same exact commit reuse the one prepared target only after that preparation succeeded.
+
 ## Expected-result contract
 
 Expected outcomes are frozen before execution. The current isolated runner maps a successful test-process exit (`0`) to the execution result `PASS`, so every runnable manifest must explicitly include `PASS` in `expected.allowed_results` before the test starts.
@@ -61,4 +73,4 @@ Increment `test_version` when attack logic, expected condition, evidence interpr
 
 ## Fail closed
 
-Harness errors, missing dependencies, missing evidence, skipped required paths, invalid or structurally ambiguous manifests, duplicate IDs/versions, PR-only execution evidence, results outside the frozen allowed set, attempted STABLE downgrade or incomplete STABLE authorization are never automatically PASS.
+Harness errors, missing dependencies, missing evidence, skipped required paths, invalid or structurally ambiguous manifests, duplicate IDs/versions, mutable or missing target identities, PR-only execution evidence, results outside the frozen allowed set, attempted STABLE downgrade or incomplete STABLE authorization are never automatically PASS.

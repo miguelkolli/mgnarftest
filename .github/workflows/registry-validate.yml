@@ -24,18 +24,6 @@ jobs:
         run: |
           test "$(git -C mgnarftest rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
 
-      - name: Checkout exact MGnarf v1.70 target
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          repository: miguelkolli/mgnarf
-          ref: b811a13eab9cacd9f922b1f15097aa6bf700fc01
-          path: target-mgnarf
-          persist-credentials: false
-
-      - name: Verify exact MGnarf target SHA
-        run: |
-          test "$(git -C target-mgnarf rev-parse HEAD)" = "b811a13eab9cacd9f922b1f15097aa6bf700fc01"
-
       - name: Python version
         run: python3 --version
 
@@ -50,6 +38,8 @@ jobs:
           python3 -m py_compile \
             tools/validate_registry.py \
             tools/test_validate_registry.py \
+            tools/prepare_targets.py \
+            tools/test_prepare_targets.py \
             tools/run_registry.py \
             tools/test_run_registry.py \
             tools/generate_receipt.py \
@@ -63,8 +53,13 @@ jobs:
         run: |
           python3 -m unittest -v \
             tools.test_validate_registry \
+            tools.test_prepare_targets \
             tools.test_run_registry \
             tools.test_verify_stable_promotion_pr
+
+      - name: Prepare exact MGnarf targets from runnable manifests
+        working-directory: mgnarftest
+        run: python3 tools/prepare_targets.py
 
       - name: Verify container runtime
         run: docker version --format '{{.Server.Version}}'
@@ -72,7 +67,6 @@ jobs:
       - name: Run all runnable registry tests in isolated containers
         working-directory: mgnarftest
         env:
-          MGNARF_TARGET_SHA: b811a13eab9cacd9f922b1f15097aa6bf700fc01
           MGNARFTEST_PYTHON_IMAGE: python:3.12-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1
         run: python3 tools/run_registry.py
 

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import subprocess
+import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from tools import run_registry as runner
@@ -44,6 +46,26 @@ class RegistryRunnerTimeoutTests(unittest.TestCase):
         path = runner.ROOT / "tests" / "fixture" / "manifest.json"
         result = runner.result_contract(path, {"expected": {"allowed_results": ["PASS", "FAIL"]}})
         self.assertEqual(result, "PASS")
+
+    def test_target_source_is_selected_by_manifest_exact_sha(self):
+        sha = "a" * 40
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            source = workspace / "targets" / sha / "src"
+            source.mkdir(parents=True)
+            path = runner.ROOT / "tests" / "fixture" / "manifest.json"
+            manifest = {"target": {"repository": runner.EXPECTED_TARGET_REPOSITORY, "commit": sha}}
+            self.assertEqual(runner.target_source_for(workspace, path, manifest), source)
+
+    def test_missing_prepared_exact_target_fails_closed(self):
+        sha = "b" * 40
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            path = runner.ROOT / "tests" / "fixture" / "manifest.json"
+            manifest = {"target": {"repository": runner.EXPECTED_TARGET_REPOSITORY, "commit": sha}}
+            with self.assertRaises(SystemExit) as ctx:
+                runner.target_source_for(workspace, path, manifest)
+        self.assertIn("prepared exact target source missing", str(ctx.exception))
 
 
 if __name__ == "__main__":
