@@ -54,6 +54,6 @@ See [TRUST-BOUNDARY.md](TRUST-BOUNDARY.md) for the exact limitation and the requ
 
 ## Current status
 
-Six external tests are currently `PROPOSED`: stage ordering, same-operation replay resistance, builder/verifier identity separation, post-PASS frozen-state drift, post-PASS revocation, and authenticated verifier-evidence tampering. No external test is `STABLE` yet.
+Seven external tests are currently `PROPOSED`: stage ordering, same-operation replay resistance, builder/verifier identity separation, post-PASS frozen-state drift, post-PASS revocation, authenticated verifier-evidence tampering, and frozen effect-binding substitution. No external test is `STABLE` yet.
 
 NARF principle: **no PASS without executed evidence; no STABLE test without frozen identity, target, receipt, review evidence and an enforceable repository trust root.**
