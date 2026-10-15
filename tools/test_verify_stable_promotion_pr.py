@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 import copy
+import io
 import json
 import os
 import tempfile
 import unittest
+from contextlib import redirect_stderr
 from unittest import mock
 
 from tools import verify_stable_promotion_pr as gate
@@ -139,26 +141,30 @@ class TrustedPromotionVerifierTests(unittest.TestCase):
         self.assertEqual(result, 0)
 
     def test_existing_stable_manifest_cannot_be_demoted(self):
-        with self.assertRaises(SystemExit) as ctx:
-            self.run_main(
-                files=[self.MANIFEST_PATH],
-                head=self.base_manifest(),
-                base=self.stable_manifest(),
-            )
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            with self.assertRaises(SystemExit) as ctx:
+                self.run_main(
+                    files=[self.MANIFEST_PATH],
+                    head=self.base_manifest(),
+                    base=self.stable_manifest(),
+                )
         self.assertEqual(ctx.exception.code, 1)
-        self.assertIn("existing STABLE manifest is immutable", str(ctx.exception))
+        self.assertIn("existing STABLE manifest is immutable", stderr.getvalue())
 
     def test_existing_stable_manifest_cannot_be_modified_in_place(self):
         head = self.stable_manifest()
         head["review"]["reviewer_a"] = "different-reviewer"
-        with self.assertRaises(SystemExit) as ctx:
-            self.run_main(
-                files=[self.MANIFEST_PATH],
-                head=head,
-                base=self.stable_manifest(),
-            )
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            with self.assertRaises(SystemExit) as ctx:
+                self.run_main(
+                    files=[self.MANIFEST_PATH],
+                    head=head,
+                    base=self.stable_manifest(),
+                )
         self.assertEqual(ctx.exception.code, 1)
-        self.assertIn("existing STABLE manifest is immutable", str(ctx.exception))
+        self.assertIn("existing STABLE manifest is immutable", stderr.getvalue())
 
     def test_mixed_code_and_stable_promotion_fails_closed(self):
         with self.assertRaises(SystemExit) as ctx:
