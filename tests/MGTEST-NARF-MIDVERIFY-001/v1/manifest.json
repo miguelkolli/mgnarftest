@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "test_id": "MGTEST-NARF-MIDVERIFY-001",
+  "test_version": 1,
+  "status": "PROPOSED",
+  "target": {
+    "project": "MGnarf",
+    "repository": "miguelkolli/mgnarf",
+    "release": "v1.70",
+    "commit": "b811a13eab9cacd9f922b1f15097aa6bf700fc01"
+  },
+  "purpose": "Verify that transient frozen-state drift during verifier execution converts a producer PASS into persistent BLOCKED evidence.",
+  "expected": {
+    "allowed_results": ["PASS", "FAIL", "BLOCKED", "UNVERIFIED"],
+    "safe_condition": "If candidate, requirements, or policy state changes while a verifier producer runs, the produced PASS must be downgraded to BLOCKED/STATE_CHANGED_DURING_VERIFICATION, and restoring the frozen state afterward must not erase that blocked evidence; unchanged state may proceed."
+  },
+  "execution": {
+    "entrypoint": "python3 tests/MGTEST-NARF-MIDVERIFY-001/v1/test.py",
+    "network": false,
+    "privileges": "none",
+    "external_dependencies": [],
+    "timeout_seconds": 30
+  },
+  "limits": [
+    "This test measures MGnarf v1.70 state rechecking around verifier producer execution at the exact target commit.",
+    "It does not prove that the host state probe itself is truthful or resistant to compromise."
+  ],
+  "review": {
+    "author": "miguelkolli",
+    "reviewer_a": null,
+    "reviewer_b": null,
+    "promotion_pr": null
+  },
+  "evidence": {
+    "result": "UNVERIFIED",
+    "run_id": null,
+    "artifact_hash": null,
+    "receipt_sha256": null,
+    "mgtest_commit": null,
+    "target_commit": null
+  }
+}
