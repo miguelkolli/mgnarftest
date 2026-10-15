@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "test_id": "MGTEST-NARF-MIDPROFILE-001",
+  "test_version": 1,
+  "status": "PROPOSED",
+  "target": {
+    "project": "MGnarf",
+    "repository": "miguelkolli/mgnarf",
+    "release": "v1.70",
+    "commit": "b811a13eab9cacd9f922b1f15097aa6bf700fc01"
+  },
+  "purpose": "Verify that verifier-profile drift in either the trusted identity view or the host binding during verifier execution overrides a producer PASS and persists only BLOCKED evidence.",
+  "expected": {
+    "allowed_results": ["PASS", "FAIL", "BLOCKED", "UNVERIFIED"],
+    "safe_condition": "If a verifier profile changes in the trusted identity probe or mutable host binding while its producer runs, the producer PASS must be converted to STATE_CHANGED_DURING_VERIFICATION/BLOCKED evidence; restoring the frozen profile afterward must not heal that evidence, while unchanged profiles may proceed."
+  },
+  "execution": {
+    "entrypoint": "python3 tests/MGTEST-NARF-MIDPROFILE-001/v1/test.py",
+    "network": false,
+    "privileges": "none",
+    "external_dependencies": [],
+    "timeout_seconds": 30
+  },
+  "limits": [
+    "This test measures MGnarf v1.70 verifier_profile continuity around synchronous verifier execution at the exact target commit.",
+    "It does not prove that provider/model/prompt/toolchain profile metadata supplied by the trusted host is independently truthful."
+  ],
+  "review": {
+    "author": "miguelkolli",
+    "reviewer_a": null,
+    "reviewer_b": null,
+    "promotion_pr": null
+  },
+  "evidence": {
+    "result": "UNVERIFIED",
+    "run_id": null,
+    "artifact_hash": null,
+    "receipt_sha256": null,
+    "mgtest_commit": null,
+    "target_commit": null
+  }
+}
