@@ -219,9 +219,9 @@ class TrustedPromotionVerifierTests(unittest.TestCase):
         ]
 
         def fake_api_get(url, _token):
-            if "page=1" in url:
+            if "&page=1" in url:
                 return page_one
-            if "page=2" in url:
+            if "&page=2" in url:
                 return page_two
             raise AssertionError(f"unexpected URL: {url}")
 
