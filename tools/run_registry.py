@@ -9,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 RUNNABLE_STATUSES = {"PROPOSED", "REVIEW-A", "REVIEW-B", "STABLE"}
 EXPECTED_TARGET_REPOSITORY = "miguelkolli/mgnarf"
-DEFAULT_IMAGE = "python:3.12-slim"
+PINNED_IMAGE = "python:3.12-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1"
 
 
 def die(message: str) -> None:
@@ -60,14 +60,14 @@ def entrypoint_for(path: Path, manifest: dict) -> list[str]:
 def main() -> int:
     workspace = Path(os.environ.get("GITHUB_WORKSPACE", "")).resolve()
     target_sha = os.environ.get("MGNARF_TARGET_SHA", "").strip()
-    image = os.environ.get("MGNARFTEST_PYTHON_IMAGE", DEFAULT_IMAGE).strip()
+    image = os.environ.get("MGNARFTEST_PYTHON_IMAGE", "").strip()
 
     if not workspace.is_dir():
         die("GITHUB_WORKSPACE is missing")
     if len(target_sha) != 40:
         die("MGNARF_TARGET_SHA must be an exact 40-hex SHA")
-    if not image:
-        die("container image is empty")
+    if image != PINNED_IMAGE:
+        die("container image does not match pinned immutable digest")
 
     registry_mount = workspace / "mgnarftest"
     target_mount = workspace / "target-mgnarf" / "src"

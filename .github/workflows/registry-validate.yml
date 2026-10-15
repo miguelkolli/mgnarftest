@@ -13,14 +13,19 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout MGnarfTest exact event commit
-        uses: actions/checkout@v4
+      - name: Checkout exact MGnarfTest subject commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           path: mgnarftest
           persist-credentials: false
 
+      - name: Verify exact MGnarfTest subject SHA
+        run: |
+          test "$(git -C mgnarftest rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+
       - name: Checkout exact MGnarf v1.70 target
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: miguelkolli/mgnarf
           ref: b811a13eab9cacd9f922b1f15097aa6bf700fc01
@@ -58,13 +63,14 @@ jobs:
         working-directory: mgnarftest
         env:
           MGNARF_TARGET_SHA: b811a13eab9cacd9f922b1f15097aa6bf700fc01
-          MGNARFTEST_PYTHON_IMAGE: python:3.12-slim
+          MGNARFTEST_PYTHON_IMAGE: python:3.12-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1
         run: python3 tools/run_registry.py
 
       - name: Generate bound execution receipts
         working-directory: mgnarftest
         env:
           MGTEST_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          MGNARFTEST_PYTHON_IMAGE: python:3.12-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1
         run: python3 tools/generate_receipt.py
 
       - name: Verify all bound execution receipts
@@ -103,7 +109,7 @@ jobs:
           echo "Tampered receipt rejected as required"
 
       - name: Upload execution evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: mgnarftest-evidence-${{ github.run_id }}
           path: mgnarftest/evidence/*.json
