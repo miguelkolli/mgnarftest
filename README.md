@@ -18,7 +18,7 @@ Exact stable source commit:
 b811a13eab9cacd9f922b1f15097aa6bf700fc01
 ```
 
-A test result must bind to an exact MGnarf commit. `main` alone is never sufficient evidence.
+A test result must bind to an exact MGnarf commit. `main` alone is never sufficient evidence. The registry runner now prepares each runnable manifest's exact target independently, so future MGnarf releases can coexist without sharing a moving checkout.
 
 ## Development versus STABLE
 
@@ -45,6 +45,12 @@ STABLE promotion (separate PR)
 Two-review enforcement applies to STABLE promotion, not normal development.
 
 The STABLE gate uses verifier code from the trusted base branch. It does **not** execute the promotion PR's code. A PR-generated receipt cannot be used as STABLE evidence; the evidence must come from a successful `main` push run for the exact tested subject commit.
+
+## Trust-root status
+
+Repository-local execution, receipt and promotion controls are evidence-tested. The private repository's protected-`main` trust root is **not currently independently verified** through the available GitHub controls, so MGnarfTest does not claim that the trusted base branch is tamper-proof.
+
+See [TRUST-BOUNDARY.md](TRUST-BOUNDARY.md) for the exact limitation and the requirements for a stronger STABLE trust claim.
 
 ## Current status
 
