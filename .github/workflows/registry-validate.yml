@@ -44,13 +44,29 @@ jobs:
           python3 -m py_compile tools/validate_registry.py
           python3 -m py_compile tools/generate_receipt.py
           python3 -m py_compile tools/verify_receipt.py
+          python3 -m py_compile tools/verify_promotion.py
           python3 -m py_compile tests/MGTEST-NARF-ORDER-001/v1/test.py
 
-      - name: Run MGTEST-NARF-ORDER-001/v1 against exact target
-        working-directory: mgnarftest
-        env:
-          PYTHONPATH: ${{ github.workspace }}/target-mgnarf/src
-        run: python3 tests/MGTEST-NARF-ORDER-001/v1/test.py
+      - name: Verify container runtime
+        run: docker version --format '{{.Server.Version}}'
+
+      - name: Run external test in isolated no-network container
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --network none \
+            --read-only \
+            --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --user 65534:65534 \
+            --tmpfs /tmp:rw,nosuid,nodev,noexec,size=64m \
+            -e PYTHONPATH=/target-src \
+            -e PYTHONDONTWRITEBYTECODE=1 \
+            -v "${{ github.workspace }}/mgnarftest:/mgnarftest:ro" \
+            -v "${{ github.workspace }}/target-mgnarf/src:/target-src:ro" \
+            -w /mgnarftest \
+            python:3.12-slim \
+            python3 tests/MGTEST-NARF-ORDER-001/v1/test.py
 
       - name: Generate bound execution receipt
         working-directory: mgnarftest
