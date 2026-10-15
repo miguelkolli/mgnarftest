@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "test_id": "MGTEST-NARF-MIDREVOKE-001",
+  "test_version": 1,
+  "status": "PROPOSED",
+  "target": {
+    "project": "MGnarf",
+    "repository": "miguelkolli/mgnarf",
+    "release": "v1.70",
+    "commit": "b811a13eab9cacd9f922b1f15097aa6bf700fc01"
+  },
+  "purpose": "Verify that revocation arriving during verifier execution overrides a producer PASS and persists only BLOCKED evidence.",
+  "expected": {
+    "allowed_results": ["PASS", "FAIL", "BLOCKED", "UNVERIFIED"],
+    "safe_condition": "If revocation becomes true while a verifier producer is running, the producer's PASS must be converted to STATE_CHANGED_DURING_VERIFICATION/BLOCKED evidence; clearing revocation afterward must not heal that evidence, while an unrevoked control may proceed."
+  },
+  "execution": {
+    "entrypoint": "python3 tests/MGTEST-NARF-MIDREVOKE-001/v1/test.py",
+    "network": false,
+    "privileges": "none",
+    "external_dependencies": [],
+    "timeout_seconds": 30
+  },
+  "limits": [
+    "This test measures revocation observed by MGnarf v1.70 before and after one synchronous verifier producer call at the exact target commit.",
+    "It does not prove real-time delivery latency or correctness of an external revocation source."
+  ],
+  "review": {
+    "author": "miguelkolli",
+    "reviewer_a": null,
+    "reviewer_b": null,
+    "promotion_pr": null
+  },
+  "evidence": {
+    "result": "UNVERIFIED",
+    "run_id": null,
+    "artifact_hash": null,
+    "receipt_sha256": null,
+    "mgtest_commit": null,
+    "target_commit": null
+  }
+}
