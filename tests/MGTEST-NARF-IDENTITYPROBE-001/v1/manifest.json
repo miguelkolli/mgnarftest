@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "test_id": "MGTEST-NARF-IDENTITYPROBE-001",
+  "test_version": 1,
+  "status": "PROPOSED",
+  "target": {
+    "project": "MGnarf",
+    "repository": "miguelkolli/mgnarf",
+    "release": "v1.70",
+    "commit": "b811a13eab9cacd9f922b1f15097aa6bf700fc01"
+  },
+  "purpose": "Verify that post-PASS identity drift or loss of the trusted identity probe invalidates effect authority.",
+  "expected": {
+    "allowed_results": ["PASS", "FAIL", "BLOCKED", "UNVERIFIED"],
+    "safe_condition": "A current identity set that differs from the frozen identity policy, or an unavailable identity probe, must invalidate a previously authenticated PASS before effect execution; unchanged identities may proceed."
+  },
+  "execution": {
+    "entrypoint": "python3 tests/MGTEST-NARF-IDENTITYPROBE-001/v1/test.py",
+    "network": false,
+    "privileges": "none",
+    "external_dependencies": [],
+    "timeout_seconds": 30
+  },
+  "limits": [
+    "This test measures MGnarf v1.70 identity-probe continuity at the exact target commit.",
+    "It does not prove that the external identity provider truthfully maps principals, trust domains, or verifier profiles."
+  ],
+  "review": {
+    "author": "miguelkolli",
+    "reviewer_a": null,
+    "reviewer_b": null,
+    "promotion_pr": null
+  },
+  "evidence": {
+    "result": "UNVERIFIED",
+    "run_id": null,
+    "artifact_hash": null,
+    "receipt_sha256": null,
+    "mgtest_commit": null,
+    "target_commit": null
+  }
+}
