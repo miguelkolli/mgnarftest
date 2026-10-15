@@ -181,6 +181,61 @@ class TrustedPromotionVerifierTests(unittest.TestCase):
             self.run_main(files=[self.MANIFEST_PATH], approvals={"reviewer-a"})
         self.assertEqual(ctx.exception.code, 1)
 
+    def test_review_pagination_uses_latest_state_across_pages(self):
+        page_one = [
+            {
+                "id": 1,
+                "user": {"login": "reviewer-a"},
+                "state": "APPROVED",
+                "commit_id": self.HEAD_SHA,
+                "submitted_at": "2026-10-15T10:00:00Z",
+            }
+        ]
+        for index in range(2, 101):
+            page_one.append(
+                {
+                    "id": index,
+                    "user": {"login": f"filler-{index}"},
+                    "state": "COMMENTED",
+                    "commit_id": self.HEAD_SHA,
+                    "submitted_at": "2026-10-15T10:00:00Z",
+                }
+            )
+        page_two = [
+            {
+                "id": 101,
+                "user": {"login": "reviewer-a"},
+                "state": "CHANGES_REQUESTED",
+                "commit_id": self.HEAD_SHA,
+                "submitted_at": "2026-10-15T11:00:00Z",
+            },
+            {
+                "id": 102,
+                "user": {"login": "reviewer-b"},
+                "state": "APPROVED",
+                "commit_id": self.HEAD_SHA,
+                "submitted_at": "2026-10-15T11:01:00Z",
+            },
+        ]
+
+        def fake_api_get(url, _token):
+            if "page=1" in url:
+                return page_one
+            if "page=2" in url:
+                return page_two
+            raise AssertionError(f"unexpected URL: {url}")
+
+        with mock.patch.object(gate, "api_get", side_effect=fake_api_get) as api_get:
+            approvals = gate.latest_approvals(
+                gate.REGISTRY_REPOSITORY,
+                self.PR_NUMBER,
+                self.HEAD_SHA,
+                set(),
+                "test-token",
+            )
+        self.assertEqual(approvals, {"reviewer-b"})
+        self.assertEqual(api_get.call_count, 2)
+
     def test_pr_run_evidence_is_rejected(self):
         manifest = self.stable_manifest()
 

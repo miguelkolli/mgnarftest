@@ -135,19 +135,39 @@ def validate_stable_shape(path: str, head: dict, base: dict, subject: dict, pr_n
         die(f"{path}: evidence.target_commit mismatch")
 
 
+def review_order(review: dict) -> tuple[str, int]:
+    submitted = review.get("submitted_at") or ""
+    try:
+        review_id = int(review.get("id") or 0)
+    except (TypeError, ValueError):
+        review_id = 0
+    return submitted, review_id
+
+
 def latest_approvals(repo: str, number: int, head_sha: str, excluded: set[str], token: str) -> set[str]:
-    reviews = api_get(f"https://api.github.com/repos/{repo}/pulls/{number}/reviews?per_page=100", token)
     latest = {}
-    for review in reviews:
-        user = (review.get("user") or {}).get("login")
-        if not user:
-            continue
-        submitted = review.get("submitted_at") or ""
-        previous = latest.get(user)
-        if previous is None or submitted >= (previous.get("submitted_at") or ""):
-            latest[user] = review
+    page = 1
+    while True:
+        reviews = api_get(
+            f"https://api.github.com/repos/{repo}/pulls/{number}/reviews?per_page=100&page={page}",
+            token,
+        )
+        if not isinstance(reviews, list):
+            die("invalid pull-request review list")
+        for review in reviews:
+            user = (review.get("user") or {}).get("login")
+            if not user:
+                continue
+            marker = review_order(review)
+            previous = latest.get(user)
+            if previous is None or marker >= previous[0]:
+                latest[user] = (marker, review)
+        if len(reviews) < 100:
+            break
+        page += 1
+
     return {
-        user for user, review in latest.items()
+        user for user, (_, review) in latest.items()
         if user not in excluded
         and review.get("state") == "APPROVED"
         and review.get("commit_id") == head_sha
