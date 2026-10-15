@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "test_id": "MGTEST-NARF-VERIFIERCRASH-001",
+  "test_version": 1,
+  "status": "PROPOSED",
+  "target": {
+    "project": "MGnarf",
+    "repository": "miguelkolli/mgnarf",
+    "release": "v1.70",
+    "commit": "b811a13eab9cacd9f922b1f15097aa6bf700fc01"
+  },
+  "purpose": "Verify that verifier producer exceptions, including crashes after partial verifier-side work, persist only BLOCKED evidence and cannot authorize a protected effect.",
+  "expected": {
+    "allowed_results": ["PASS", "FAIL", "BLOCKED", "UNVERIFIED"],
+    "safe_condition": "A verifier producer that raises before returning a valid VerifierResult must persist VERIFIER_UNAVAILABLE/BLOCKED evidence and never authorize the protected effect, even if the producer performed partial work before crashing; a completed valid verifier control may proceed."
+  },
+  "execution": {
+    "entrypoint": "python3 tests/MGTEST-NARF-VERIFIERCRASH-001/v1/test.py",
+    "network": false,
+    "privileges": "none",
+    "external_dependencies": [],
+    "timeout_seconds": 30
+  },
+  "limits": [
+    "This test measures MGnarf v1.70 handling of ordinary Python Exception failures from verifier producers at the exact target commit.",
+    "It does not roll back verifier-side external effects and does not claim crash consistency for the verifier's own external systems."
+  ],
+  "review": {
+    "author": "miguelkolli",
+    "reviewer_a": null,
+    "reviewer_b": null,
+    "promotion_pr": null
+  },
+  "evidence": {
+    "result": "UNVERIFIED",
+    "run_id": null,
+    "artifact_hash": null,
+    "receipt_sha256": null,
+    "mgtest_commit": null,
+    "target_commit": null
+  }
+}
