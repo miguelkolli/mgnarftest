@@ -8,7 +8,7 @@
     "schema_version": {"const": 1},
     "test_id": {"type": "string", "pattern": "^MGTEST-[A-Z0-9]+-[A-Z0-9-]+-[0-9]{3}$"},
     "test_version": {"type": "integer", "minimum": 1},
-    "status": {"enum": ["PROPOSED", "REVIEW-A", "REVIEW-B", "STABLE", "BLOCKED", "REJECTED", "NEEDS-REVISION"]},
+    "status": {"enum": ["PROPOSED", "REVIEW-A", "REVIEW-B", "STABLE", "BLOCKED", "REJECTED", "NEEDS-REVISION", "RETIRED"]},
     "target": {
       "type": "object",
       "required": ["project", "repository", "release", "commit"],
