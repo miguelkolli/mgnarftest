@@ -34,6 +34,17 @@ class RegistryRunnerTimeoutTests(unittest.TestCase):
                 runner.run_container(["docker", "run"], "fixture", 3)
         self.assertIn("returned 9", str(ctx.exception))
 
+    def test_runnable_test_must_freeze_pass_as_allowed_result(self):
+        path = runner.ROOT / "tests" / "fixture" / "manifest.json"
+        with self.assertRaises(SystemExit) as ctx:
+            runner.result_contract(path, {"expected": {"allowed_results": ["FAIL", "BLOCKED"]}})
+        self.assertIn("must explicitly allow PASS before execution", str(ctx.exception))
+
+    def test_runnable_test_accepts_frozen_pass_result(self):
+        path = runner.ROOT / "tests" / "fixture" / "manifest.json"
+        result = runner.result_contract(path, {"expected": {"allowed_results": ["PASS", "FAIL"]}})
+        self.assertEqual(result, "PASS")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

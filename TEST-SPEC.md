@@ -13,6 +13,7 @@ test_id + test_version
 + test content / manifest hashes
 + exact MGnarf target commit
 + frozen expected condition
++ frozen allowed result set
 + successful main-push execution receipt
 + GitHub Actions run ID
 + artifact digest
@@ -25,6 +26,12 @@ test_id + test_version
 `evidence.mgtest_commit` means the tested MGnarfTest subject commit that produced the receipt. STABLE evidence is eligible only when that exact commit was executed by the registry workflow from a successful `main` push.
 
 `review.promotion_pr` means the separate GitHub pull-request number that requests STABLE acceptance. The exact reviewed head SHA is intentionally **not embedded in the manifest**, because embedding a commit's own SHA would create a self-referential hash cycle. GitHub's authenticated review history is the authority for the exact approved promotion head.
+
+## Expected-result contract
+
+Expected outcomes are frozen before execution. The current isolated runner maps a successful test-process exit (`0`) to the execution result `PASS`, so every runnable manifest must explicitly include `PASS` in `expected.allowed_results` before the test starts.
+
+Execution receipts mirror the frozen `expected.allowed_results` list. Receipt verification requires that list to match the bound manifest exactly and rejects any receipt whose reported result is outside the frozen allowed set. Recomputing the receipt hash after changing the result does not bypass this semantic check.
 
 ## Promotion separation
 
@@ -42,4 +49,4 @@ Increment `test_version` when attack logic, expected condition, evidence interpr
 
 ## Fail closed
 
-Harness errors, missing dependencies, missing evidence, skipped required paths, invalid manifests, duplicate IDs/versions, PR-only execution evidence or incomplete STABLE authorization are never automatically PASS.
+Harness errors, missing dependencies, missing evidence, skipped required paths, invalid manifests, duplicate IDs/versions, PR-only execution evidence, results outside the frozen allowed set or incomplete STABLE authorization are never automatically PASS.

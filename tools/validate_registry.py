@@ -10,6 +10,7 @@ HEX40 = re.compile(r"^[0-9a-f]{40}$")
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 ID_RE = re.compile(r"^MGTEST-[A-Z0-9]+-[A-Z0-9-]+-[0-9]{3}$")
 STATUSES = {"PROPOSED", "REVIEW-A", "REVIEW-B", "STABLE", "BLOCKED", "REJECTED", "NEEDS-REVISION", "RETIRED"}
+RUNNABLE_STATUSES = {"PROPOSED", "REVIEW-A", "REVIEW-B", "STABLE"}
 RESULTS = {"PASS", "FAIL", "BLOCKED", "UNVERIFIED", "LIMITATION_CONFIRMED"}
 MAX_TIMEOUT_SECONDS = 300
 
@@ -62,6 +63,10 @@ def validate(path: Path) -> tuple[str, int]:
     safe_condition = require(expected, "safe_condition", path)
     if not isinstance(allowed, list) or not allowed or any(item not in RESULTS for item in allowed):
         fail(path, "expected.allowed_results contains unsupported result")
+    if len(set(allowed)) != len(allowed):
+        fail(path, "expected.allowed_results must not contain duplicates")
+    if status in RUNNABLE_STATUSES and "PASS" not in allowed:
+        fail(path, "runnable test must explicitly allow PASS before execution")
     if not isinstance(safe_condition, str) or len(safe_condition.strip()) < 10:
         fail(path, "expected.safe_condition is too short")
 
@@ -108,6 +113,8 @@ def validate(path: Path) -> tuple[str, int]:
             fail(path, "STABLE requires positive integer review.promotion_pr")
         if evidence["result"] != "PASS":
             fail(path, "STABLE requires PASS execution evidence")
+        if evidence["result"] not in allowed:
+            fail(path, "STABLE evidence.result must be permitted by expected.allowed_results")
         if not isinstance(evidence["run_id"], str) or not evidence["run_id"].isdigit():
             fail(path, "STABLE requires numeric-string evidence.run_id")
         if not isinstance(evidence["artifact_hash"], str) or not HEX64.fullmatch(evidence["artifact_hash"]):

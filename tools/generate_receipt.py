@@ -73,6 +73,10 @@ def main() -> int:
         manifest = load_manifest(manifest_path)
         test_file = test_file_for(manifest)
         target = manifest.get("target") or {}
+        expected_manifest = manifest.get("expected") or {}
+        allowed_results = expected_manifest.get("allowed_results")
+        if not isinstance(allowed_results, list) or "PASS" not in allowed_results:
+            die(f"{manifest_path}: PASS is not frozen in expected.allowed_results")
         execution_manifest = manifest.get("execution") or {}
         test_id = manifest["test_id"]
         version = manifest["test_version"]
@@ -81,6 +85,7 @@ def main() -> int:
             "test": {"id": test_id, "version": version, "manifest_sha256": sha256_file(manifest_path), "test_sha256": sha256_file(test_file)},
             "mgtest": {"repository": repository, "commit": subject_sha},
             "target": {"repository": target.get("repository"), "release": target.get("release"), "commit": target.get("commit")},
+            "expected": {"allowed_results": list(allowed_results)},
             "execution": {
                 "provider": "github-actions",
                 "run_id": run_id,

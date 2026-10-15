@@ -30,6 +30,14 @@ def load_manifests():
     return manifests
 
 
+def result_contract(path: Path, manifest: dict) -> str:
+    expected = manifest.get("expected") or {}
+    allowed = expected.get("allowed_results")
+    if not isinstance(allowed, list) or "PASS" not in allowed:
+        die(f"{path.relative_to(ROOT)}: runnable test must explicitly allow PASS before execution")
+    return "PASS"
+
+
 def execution_contract(path: Path, manifest: dict) -> tuple[list[str], int]:
     test_id = manifest.get("test_id")
     version = manifest.get("test_version")
@@ -108,6 +116,7 @@ def main() -> int:
         if target.get("commit") != target_sha:
             die(f"{path.relative_to(ROOT)}: target commit does not match checked-out exact target")
 
+        result_contract(path, manifest)
         argv, timeout_seconds = execution_contract(path, manifest)
         test_name = f"{manifest['test_id']}/v{manifest['test_version']}"
         safe_id = manifest["test_id"].lower().replace("_", "-")

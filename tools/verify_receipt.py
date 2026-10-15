@@ -97,9 +97,20 @@ def main() -> int:
         if target.get(key) != manifest_target.get(key):
             die(f"target.{key} does not match manifest")
 
+    expected_receipt = require_dict(receipt, "expected")
+    manifest_allowed = (manifest.get("expected") or {}).get("allowed_results")
+    receipt_allowed = expected_receipt.get("allowed_results")
+    if not isinstance(manifest_allowed, list) or receipt_allowed != manifest_allowed:
+        die("expected.allowed_results binding mismatch")
+
     execution = require_dict(receipt, "execution")
-    if execution.get("provider") != "github-actions" or execution.get("result") != "PASS":
-        die("invalid execution provider/result")
+    result = execution.get("result")
+    if execution.get("provider") != "github-actions":
+        die("invalid execution provider")
+    if result not in receipt_allowed:
+        die("execution result is not permitted by frozen expected.allowed_results")
+    if result != "PASS":
+        die("execution result is not PASS")
     if execution.get("container_image") != PINNED_IMAGE:
         die("container image binding mismatch")
     manifest_timeout = (manifest.get("execution") or {}).get("timeout_seconds")
