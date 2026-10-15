@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "test_id": "MGTEST-NARF-RACEFAIL-001",
+  "test_version": 1,
+  "status": "PROPOSED",
+  "target": {
+    "project": "MGnarf",
+    "repository": "miguelkolli/mgnarf",
+    "release": "v1.70",
+    "commit": "b811a13eab9cacd9f922b1f15097aa6bf700fc01"
+  },
+  "purpose": "Verify that concurrent protected-effect racing remains at-most-once even when the sole winning callback crashes after durable effect consumption.",
+  "expected": {
+    "allowed_results": ["PASS", "FAIL", "BLOCKED", "UNVERIFIED"],
+    "safe_condition": "Sixteen fully PASS sessions racing on one frozen contract must produce exactly one callback entry and one durable effect receipt even when that callback raises; all competing sessions, winner/loser retries, and a fresh PASS session must remain unable to re-enter the callback."
+  },
+  "execution": {
+    "entrypoint": "python3 tests/MGTEST-NARF-RACEFAIL-001/v1/test.py",
+    "network": false,
+    "privileges": "none",
+    "external_dependencies": [],
+    "timeout_seconds": 30
+  },
+  "limits": [
+    "This test measures same-process concurrent sessions sharing one MGnarf v1.70 ReceiptStore at the exact target commit, with the winning callback failing synchronously.",
+    "It proves local at-most-once callback entry, not successful exactly-once delivery; distributed/multi-host targets require stronger external consumption/fencing authority."
+  ],
+  "review": {
+    "author": "miguelkolli",
+    "reviewer_a": null,
+    "reviewer_b": null,
+    "promotion_pr": null
+  },
+  "evidence": {
+    "result": "UNVERIFIED",
+    "run_id": null,
+    "artifact_hash": null,
+    "receipt_sha256": null,
+    "mgtest_commit": null,
+    "target_commit": null
+  }
+}
