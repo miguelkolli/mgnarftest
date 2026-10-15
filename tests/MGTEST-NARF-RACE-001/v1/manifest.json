@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "test_id": "MGTEST-NARF-RACE-001",
+  "test_version": 1,
+  "status": "PROPOSED",
+  "target": {
+    "project": "MGnarf",
+    "repository": "miguelkolli/mgnarf",
+    "release": "v1.70",
+    "commit": "b811a13eab9cacd9f922b1f15097aa6bf700fc01"
+  },
+  "purpose": "Verify atomic at-most-once protected-effect consumption when multiple fully PASS sessions race concurrently on one frozen contract.",
+  "expected": {
+    "allowed_results": ["PASS", "FAIL", "BLOCKED", "UNVERIFIED"],
+    "safe_condition": "Sixteen sessions bound to the same frozen contract may all reach authenticated PASS, but simultaneous effect attempts must create exactly one durable effect receipt and enter the protected callback exactly once; every other racer and later retry must fail closed."
+  },
+  "execution": {
+    "entrypoint": "python3 tests/MGTEST-NARF-RACE-001/v1/test.py",
+    "network": false,
+    "privileges": "none",
+    "external_dependencies": [],
+    "timeout_seconds": 30
+  },
+  "limits": [
+    "This test measures same-process concurrent sessions sharing one MGnarf v1.70 ReceiptStore at the exact target commit.",
+    "It does not prove distributed or multi-host exactly-once delivery; stronger target-side or external consumption authority is required across independent filesystems or trust domains."
+  ],
+  "review": {
+    "author": "miguelkolli",
+    "reviewer_a": null,
+    "reviewer_b": null,
+    "promotion_pr": null
+  },
+  "evidence": {
+    "result": "UNVERIFIED",
+    "run_id": null,
+    "artifact_hash": null,
+    "receipt_sha256": null,
+    "mgtest_commit": null,
+    "target_commit": null
+  }
+}
