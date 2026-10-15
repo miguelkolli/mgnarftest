@@ -2,7 +2,7 @@
 
 Each test pack lives under `tests/<test-id>/v<version>/` and contains at minimum `manifest.json` plus its executable entrypoint.
 
-The canonical schema is `schema/mgtest-manifest-v1.schema.json`. CI also runs `tools/validate_registry.py` fail-closed using only Python standard library.
+The canonical schema is `schema/mgtest-manifest-v1.schema.json`. CI also runs `tools/validate_registry.py` fail-closed using only Python standard library. The executable validator mirrors the schema's closed-object policy: unknown top-level or nested manifest fields are rejected rather than silently ignored.
 
 ## Binding model
 
@@ -33,6 +33,12 @@ Expected outcomes are frozen before execution. The current isolated runner maps 
 
 Execution receipts mirror the frozen `expected.allowed_results` list. Receipt verification requires that list to match the bound manifest exactly and rejects any receipt whose reported result is outside the frozen allowed set. Recomputing the receipt hash after changing the result does not bypass this semantic check.
 
+## Manifest exactness
+
+Manifest objects are closed contracts. Unknown fields are rejected at the top level and inside `target`, `expected`, `execution`, `review`, and `evidence`. The standard-library validator also enforces the schema's basic string/list/integer shapes so a field cannot be accepted merely because later code ignores it.
+
+A future extension therefore requires an explicit schema/validator version change instead of an unreviewed extra field.
+
 ## Promotion separation
 
 A test is first merged to `main` as non-STABLE and executed there. STABLE is requested later in a separate PR.
@@ -49,4 +55,4 @@ Increment `test_version` when attack logic, expected condition, evidence interpr
 
 ## Fail closed
 
-Harness errors, missing dependencies, missing evidence, skipped required paths, invalid manifests, duplicate IDs/versions, PR-only execution evidence, results outside the frozen allowed set or incomplete STABLE authorization are never automatically PASS.
+Harness errors, missing dependencies, missing evidence, skipped required paths, invalid or structurally ambiguous manifests, duplicate IDs/versions, PR-only execution evidence, results outside the frozen allowed set or incomplete STABLE authorization are never automatically PASS.
