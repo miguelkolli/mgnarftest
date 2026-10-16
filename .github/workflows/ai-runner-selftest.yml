@@ -25,13 +25,17 @@ jobs:
       - name: Validate AI scenarios
         run: python3 tools/validate_ai_behavior.py
 
-      - name: Compile AI runner
+      - name: Compile AI runner and provider adapters
         run: |
           python3 -m py_compile \
             tools/ai_runner_protocol.py \
             tools/ai_runner_engine.py \
             tools/run_ai_behavior.py \
-            tools/test_run_ai_behavior.py
+            tools/test_run_ai_behavior.py \
+            tools/test_provider_adapters.py \
+            adapters/provider_common.py \
+            adapters/openai_adapter.py \
+            adapters/gemini_adapter.py
 
       - name: Run AI runner unit tests
-        run: python3 -m unittest -v tools.test_run_ai_behavior
+        run: python3 -m unittest -v tools.test_run_ai_behavior tools.test_provider_adapters
