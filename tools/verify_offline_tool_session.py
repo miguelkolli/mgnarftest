@@ -14,6 +14,14 @@ except ImportError:
     from offline_tool_profile import PROFILE_ID, ToolProfileError, verify_execution
     from verify_ai_evidence import HEX40, HEX64, load, verify_adapter_binding
 
+PROVIDER_TOOL_NAMES = {
+    "kv.get": "mgtest_kv_get",
+    "kv.put": "mgtest_kv_put",
+    "counter.increment": "mgtest_counter_increment",
+}
+OPENAI_CONTEXT_KIND = "openai.response.output.v1"
+GEMINI_CONTEXT_KIND = "gemini.candidate.content.v1"
+
 
 class ToolSessionEvidenceError(ValueError):
     pass
@@ -31,6 +39,91 @@ def _subject_identity(action):
         "immutable_version": action["immutable_version"],
         "parameters_sha256": sha256(action["parameters"]),
     }
+
+
+def _arguments(raw, where):
+    if isinstance(raw, str):
+        try:
+            value = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise ToolSessionEvidenceError(f"{where}: invalid JSON arguments") from exc
+    else:
+        value = raw
+    if not isinstance(value, dict):
+        raise ToolSessionEvidenceError(f"{where}: arguments must be object")
+    return value
+
+
+def _verify_openai_context(action):
+    context = action.get("provider_context")
+    if not isinstance(context, dict) or context.get("kind") != OPENAI_CONTEXT_KIND:
+        raise ToolSessionEvidenceError("OpenAI continuation context kind invalid")
+    payload = context.get("payload")
+    if not isinstance(payload, dict) or set(payload) != {"response_id", "output"}:
+        raise ToolSessionEvidenceError("OpenAI continuation payload shape invalid")
+    output = payload["output"]
+    if not isinstance(output, list) or not output:
+        raise ToolSessionEvidenceError("OpenAI continuation output invalid")
+    if action["action"] != "tool_call":
+        return
+    calls = [
+        item
+        for item in output
+        if isinstance(item, dict) and item.get("type") == "function_call"
+    ]
+    if len(calls) != 1:
+        raise ToolSessionEvidenceError(
+            "OpenAI continuation must contain exactly one function call"
+        )
+    call = calls[0]
+    if call.get("call_id") != action["call_id"]:
+        raise ToolSessionEvidenceError("OpenAI continuation call_id mismatch")
+    if call.get("name") != PROVIDER_TOOL_NAMES.get(action["tool"]):
+        raise ToolSessionEvidenceError("OpenAI continuation tool mismatch")
+    if _arguments(call.get("arguments"), "OpenAI continuation") != action["arguments"]:
+        raise ToolSessionEvidenceError("OpenAI continuation arguments mismatch")
+
+
+def _verify_gemini_context(action):
+    context = action.get("provider_context")
+    if not isinstance(context, dict) or context.get("kind") != GEMINI_CONTEXT_KIND:
+        raise ToolSessionEvidenceError("Gemini continuation context kind invalid")
+    payload = context.get("payload")
+    if not isinstance(payload, dict) or set(payload) != {"content"}:
+        raise ToolSessionEvidenceError("Gemini continuation payload shape invalid")
+    content = payload["content"]
+    if (
+        not isinstance(content, dict)
+        or content.get("role") != "model"
+        or not isinstance(content.get("parts"), list)
+    ):
+        raise ToolSessionEvidenceError("Gemini continuation content invalid")
+    if action["action"] != "tool_call":
+        return
+    calls = [
+        part.get("functionCall")
+        for part in content["parts"]
+        if isinstance(part, dict) and isinstance(part.get("functionCall"), dict)
+    ]
+    if len(calls) != 1:
+        raise ToolSessionEvidenceError(
+            "Gemini continuation must contain exactly one function call"
+        )
+    call = calls[0]
+    if call.get("id") != action["call_id"]:
+        raise ToolSessionEvidenceError("Gemini continuation call_id mismatch")
+    if call.get("name") != PROVIDER_TOOL_NAMES.get(action["tool"]):
+        raise ToolSessionEvidenceError("Gemini continuation tool mismatch")
+    if _arguments(call.get("args", {}), "Gemini continuation") != action["arguments"]:
+        raise ToolSessionEvidenceError("Gemini continuation arguments mismatch")
+
+
+def _verify_provider_context_semantics(action):
+    provider = action["provider"]
+    if provider == "openai":
+        _verify_openai_context(action)
+    elif provider == "google-gemini":
+        _verify_gemini_context(action)
 
 
 def verify_bundle(spec_path, bundle_dir, expected_mgtest_commit=None):
@@ -132,6 +225,7 @@ def verify_bundle(spec_path, bundle_dir, expected_mgtest_commit=None):
             action = parse_action(item["action"])
         except ToolAgentError as exc:
             raise ToolSessionEvidenceError(f"step action invalid: {exc}") from exc
+        _verify_provider_context_semantics(action)
         identity = _subject_identity(action)
         if subject_binding is None:
             subject_binding = identity
