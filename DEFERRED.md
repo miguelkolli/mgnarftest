@@ -25,5 +25,6 @@ These items are intentionally **not blockers** for continuing private-repository
 
 ## Later execution capabilities
 
-- Add isolated tool-enabled and network-enabled AI execution profiles before scenarios are allowed to exercise real tools or external network effects.
+- Connect a subject-model tool-call orchestration loop to the implemented `offline-deterministic-tools-v1` profile and bind every model tool request to the deterministic execution receipt.
+- Keep real network-enabled tools deferred until a separate isolated network policy, destination allowlist, effect boundary and evidence contract exist.
 - Add additional providers only behind the same adapter provenance, readiness and evidence-verification boundaries.
