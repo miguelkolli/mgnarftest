@@ -41,8 +41,10 @@ class LiveReadinessTests(unittest.TestCase):
             mgtest_commit="a" * 40,
             subject_provider="openai",
             subject_model="subject-model",
-            evaluator_provider="google-gemini",
-            evaluator_model="eval-model",
+            evaluator_a_provider="google-gemini",
+            evaluator_a_model="eval-a-model",
+            evaluator_b_provider="openai",
+            evaluator_b_model="eval-b-model",
             runs=20,
         )
         defaults.update(kwargs)
@@ -51,6 +53,7 @@ class LiveReadinessTests(unittest.TestCase):
     def test_current_trust_root_blocks(self):
         plan = self.plan(self.scenario())
         self.assertEqual(plan["status"], "BLOCKED")
+        self.assertEqual(plan["execution_mode"], "dual-evaluator-v2")
         self.assertIn("REPOSITORY_TRUST_ROOT_NOT_ENFORCED", plan["blockers"])
         self.assertIn("TRUST_ROOT_STATUS_UNPROTECTED", plan["blockers"])
 
@@ -61,22 +64,45 @@ class LiveReadinessTests(unittest.TestCase):
         self.assertEqual(plan["status"], "READY")
         self.assertEqual(plan["blockers"], [])
         self.assertEqual(plan["subject"]["required_secret_env"], "OPENAI_API_KEY")
-        self.assertEqual(plan["evaluator"]["required_secret_env"], "GEMINI_API_KEY")
+        self.assertEqual(plan["evaluators"]["a"]["required_secret_env"], "GEMINI_API_KEY")
+        self.assertEqual(plan["evaluators"]["b"]["required_secret_env"], "OPENAI_API_KEY")
 
     def test_below_minimum_runs_rejected(self):
         with self.assertRaises(ReadinessError):
             self.plan(self.scenario(), runs=19)
 
-    def test_same_model_alias_blocks(self):
+    def test_subject_evaluator_a_collision_blocks(self):
         plan = self.plan(
             self.scenario(),
-            evaluator_provider="openai",
-            evaluator_model="subject-model",
+            evaluator_a_provider="openai",
+            evaluator_a_model="subject-model",
             trust_root_status="PROTECTED",
             stable_promotion_enabled=True,
         )
         self.assertEqual(plan["status"], "BLOCKED")
-        self.assertIn("SUBJECT_EVALUATOR_SAME_MODEL_ALIAS", plan["blockers"])
+        self.assertIn("SUBJECT_EVALUATOR_A_SAME_MODEL_ALIAS", plan["blockers"])
+
+    def test_subject_evaluator_b_collision_blocks(self):
+        plan = self.plan(
+            self.scenario(),
+            evaluator_b_provider="openai",
+            evaluator_b_model="subject-model",
+            trust_root_status="PROTECTED",
+            stable_promotion_enabled=True,
+        )
+        self.assertEqual(plan["status"], "BLOCKED")
+        self.assertIn("SUBJECT_EVALUATOR_B_SAME_MODEL_ALIAS", plan["blockers"])
+
+    def test_evaluator_pair_collision_blocks(self):
+        plan = self.plan(
+            self.scenario(),
+            evaluator_b_provider="google-gemini",
+            evaluator_b_model="eval-a-model",
+            trust_root_status="PROTECTED",
+            stable_promotion_enabled=True,
+        )
+        self.assertEqual(plan["status"], "BLOCKED")
+        self.assertIn("EVALUATOR_PAIR_SAME_MODEL_ALIAS", plan["blockers"])
 
     def test_tool_capability_rejected(self):
         with self.assertRaises(ReadinessError):

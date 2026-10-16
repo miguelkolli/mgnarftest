@@ -24,24 +24,35 @@ def _provider(name):
     return PROVIDERS[name]
 
 
+def _model(value, where):
+    if not isinstance(value, str) or not value.strip():
+        raise ReadinessError(f"{where} model required")
+    return value.strip()
+
+
+def _alias(provider, model):
+    return provider, model
+
+
 def build_plan(
     scenario_path,
     *,
     mgtest_commit,
     subject_provider,
     subject_model,
-    evaluator_provider,
-    evaluator_model,
+    evaluator_a_provider,
+    evaluator_a_model,
+    evaluator_b_provider,
+    evaluator_b_model,
     runs,
     trust_root_status=None,
     stable_promotion_enabled=None,
 ):
     if not isinstance(mgtest_commit, str) or not HEX40.fullmatch(mgtest_commit):
         raise ReadinessError("mgtest_commit must be exact lowercase 40-hex SHA")
-    if not isinstance(subject_model, str) or not subject_model.strip():
-        raise ReadinessError("subject model required")
-    if not isinstance(evaluator_model, str) or not evaluator_model.strip():
-        raise ReadinessError("evaluator model required")
+    subject_model = _model(subject_model, "subject")
+    evaluator_a_model = _model(evaluator_a_model, "evaluator A")
+    evaluator_b_model = _model(evaluator_b_model, "evaluator B")
     if not isinstance(runs, int) or isinstance(runs, bool) or runs < 1:
         raise ReadinessError("runs must be positive integer")
 
@@ -54,12 +65,20 @@ def build_plan(
         raise ReadinessError(f"runs={runs} below frozen minimum_runs={execution['minimum_runs']}")
 
     subject = _provider(subject_provider)
-    evaluator = _provider(evaluator_provider)
+    evaluator_a = _provider(evaluator_a_provider)
+    evaluator_b = _provider(evaluator_b_provider)
     blockers = []
     limitations = []
 
-    if (subject_provider, subject_model) == (evaluator_provider, evaluator_model):
-        blockers.append("SUBJECT_EVALUATOR_SAME_MODEL_ALIAS")
+    subject_alias = _alias(subject_provider, subject_model)
+    a_alias = _alias(evaluator_a_provider, evaluator_a_model)
+    b_alias = _alias(evaluator_b_provider, evaluator_b_model)
+    if subject_alias == a_alias:
+        blockers.append("SUBJECT_EVALUATOR_A_SAME_MODEL_ALIAS")
+    if subject_alias == b_alias:
+        blockers.append("SUBJECT_EVALUATOR_B_SAME_MODEL_ALIAS")
+    if a_alias == b_alias:
+        blockers.append("EVALUATOR_PAIR_SAME_MODEL_ALIAS")
 
     trust_status = TRUST_ROOT_STATUS if trust_root_status is None else trust_root_status
     promotion_enabled = STABLE_PROMOTION_ENABLED if stable_promotion_enabled is None else stable_promotion_enabled
@@ -72,8 +91,9 @@ def build_plan(
         limitations.append("IMMUTABLE_MODEL_VERSIONS_MUST_BE_SUPPLIED_BY_EXECUTION_AUTHORITY")
 
     plan = {
-        "schema_version": 1,
+        "schema_version": 2,
         "plan_type": "mgtest.ai.live-readiness",
+        "execution_mode": "dual-evaluator-v2",
         "mgtest_commit": mgtest_commit,
         "scenario": {
             "path": str(path),
@@ -88,11 +108,19 @@ def build_plan(
             "adapter": subject["adapter"],
             "required_secret_env": subject["secret_env"],
         },
-        "evaluator": {
-            "provider": evaluator_provider,
-            "model": evaluator_model,
-            "adapter": evaluator["adapter"],
-            "required_secret_env": evaluator["secret_env"],
+        "evaluators": {
+            "a": {
+                "provider": evaluator_a_provider,
+                "model": evaluator_a_model,
+                "adapter": evaluator_a["adapter"],
+                "required_secret_env": evaluator_a["secret_env"],
+            },
+            "b": {
+                "provider": evaluator_b_provider,
+                "model": evaluator_b_model,
+                "adapter": evaluator_b["adapter"],
+                "required_secret_env": evaluator_b["secret_env"],
+            },
         },
         "trust_root": {
             "status": trust_status,
@@ -111,8 +139,10 @@ def main(argv=None):
     p.add_argument("--mgtest-commit", required=True)
     p.add_argument("--subject-provider", required=True, choices=sorted(PROVIDERS))
     p.add_argument("--subject-model", required=True)
-    p.add_argument("--evaluator-provider", required=True, choices=sorted(PROVIDERS))
-    p.add_argument("--evaluator-model", required=True)
+    p.add_argument("--evaluator-a-provider", required=True, choices=sorted(PROVIDERS))
+    p.add_argument("--evaluator-a-model", required=True)
+    p.add_argument("--evaluator-b-provider", required=True, choices=sorted(PROVIDERS))
+    p.add_argument("--evaluator-b-model", required=True)
     p.add_argument("--runs", type=int, required=True)
     p.add_argument("--output")
     args = p.parse_args(argv)
@@ -122,8 +152,10 @@ def main(argv=None):
             mgtest_commit=args.mgtest_commit,
             subject_provider=args.subject_provider,
             subject_model=args.subject_model,
-            evaluator_provider=args.evaluator_provider,
-            evaluator_model=args.evaluator_model,
+            evaluator_a_provider=args.evaluator_a_provider,
+            evaluator_a_model=args.evaluator_a_model,
+            evaluator_b_provider=args.evaluator_b_provider,
+            evaluator_b_model=args.evaluator_b_model,
             runs=args.runs,
         )
     except ReadinessError as exc:

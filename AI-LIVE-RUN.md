@@ -1,4 +1,4 @@
-# AI Live-Run Readiness Gate v1
+# AI Live-Run Readiness Gate v2
 
 MGnarfTest must not expose provider credentials to mutable/untrusted workflow code. Before any live AI behavior run can be authorized, `tools/check_ai_live_readiness.py` validates the frozen scenario and produces a non-secret execution plan.
 
@@ -13,6 +13,16 @@ STABLE_PROMOTION_ENABLED = false
 
 Therefore current live-run readiness is `BLOCKED` even when the scenario, providers and run count are otherwise valid.
 
+## Required execution mode
+
+Readiness v2 is bound to the dual-evaluator path:
+
+```text
+subject -> evaluator A + evaluator B -> fail-closed consensus
+```
+
+A future credentialed live run is not READY unless all three model aliases are explicitly supplied and subject/A/B plus A/B identity collisions are excluded at the provider+model alias level.
+
 ## What is checked
 
 The gate requires:
@@ -20,16 +30,27 @@ The gate requires:
 - exact 40-hex MGnarfTest commit
 - versioned AI scenario that passes the normal AI scenario validator
 - requested runs >= frozen `minimum_runs`
-- provider adapter supported by this repository
+- supported provider adapter for the subject and both evaluators
 - provider-adapter v1 capability boundary: `tools=none`, model `network=false`
-- obvious subject/evaluator same-provider+same-model alias collision is blocked before execution
-- repository trust root must be explicitly enabled by the canonical trust-root authority
+- subject != evaluator A model alias
+- subject != evaluator B model alias
+- evaluator A != evaluator B model alias
+- repository trust root explicitly enabled by the canonical trust-root authority
 
 The plan records only provider/model names, adapter paths and the **names** of required secret environment variables. It never accepts or writes provider credential values.
 
+The plan identifies its execution contract as:
+
+```text
+schema_version = 2
+execution_mode = dual-evaluator-v2
+```
+
+This prevents a future live workflow from silently falling back to the older single-evaluator path.
+
 ## Manual readiness workflow
 
-`.github/workflows/ai-live-readiness.yml` is a `workflow_dispatch` workflow with **no secrets**. It can be used to ask whether a proposed live run would be allowed by the current repository policy.
+`.github/workflows/ai-live-readiness.yml` is a `workflow_dispatch` workflow with **no secrets**. It asks for subject, Evaluator A and Evaluator B provider/model aliases and checks whether that exact dual-evaluator plan would be allowed by repository policy.
 
 It writes `live-readiness.json` and uploads it even when readiness is BLOCKED, then fails the job if the gate did not return READY. This makes BLOCKED an auditable result instead of silently skipping the check.
 

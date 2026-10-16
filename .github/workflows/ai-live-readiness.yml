@@ -20,16 +20,28 @@ on:
         description: "Subject model alias/name"
         required: true
         type: string
-      evaluator_provider:
-        description: "Evaluator provider"
+      evaluator_a_provider:
+        description: "Evaluator A provider"
         required: true
         default: "google-gemini"
         type: choice
         options:
           - openai
           - google-gemini
-      evaluator_model:
-        description: "Evaluator model alias/name"
+      evaluator_a_model:
+        description: "Evaluator A model alias/name"
+        required: true
+        type: string
+      evaluator_b_provider:
+        description: "Evaluator B provider"
+        required: true
+        default: "openai"
+        type: choice
+        options:
+          - openai
+          - google-gemini
+      evaluator_b_model:
+        description: "Evaluator B model alias/name"
         required: true
         type: string
       runs:
@@ -60,7 +72,7 @@ jobs:
       - name: Compile readiness gate
         run: python3 -m py_compile tools/check_ai_live_readiness.py
 
-      - name: Evaluate live-run readiness
+      - name: Evaluate dual-evaluator live-run readiness
         id: readiness
         continue-on-error: true
         run: |
@@ -69,8 +81,10 @@ jobs:
             --mgtest-commit "${GITHUB_SHA}" \
             --subject-provider "${{ inputs.subject_provider }}" \
             --subject-model "${{ inputs.subject_model }}" \
-            --evaluator-provider "${{ inputs.evaluator_provider }}" \
-            --evaluator-model "${{ inputs.evaluator_model }}" \
+            --evaluator-a-provider "${{ inputs.evaluator_a_provider }}" \
+            --evaluator-a-model "${{ inputs.evaluator_a_model }}" \
+            --evaluator-b-provider "${{ inputs.evaluator_b_provider }}" \
+            --evaluator-b-model "${{ inputs.evaluator_b_model }}" \
             --runs "${{ inputs.runs }}" \
             --output live-readiness.json
 
