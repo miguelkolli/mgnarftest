@@ -46,6 +46,7 @@ jobs:
             tools/verify_tool_behavior_bundle.py \
             tools/evaluator_consensus.py \
             tools/live_tool_evidence.py \
+            tools/live_tool_evidence_acceptance.py \
             tools/check_ai_live_readiness.py \
             tools/test_run_ai_behavior.py \
             tools/test_run_ai_behavior_dual.py \
@@ -58,6 +59,7 @@ jobs:
             tools/test_tool_enabled_behavior_runner.py \
             tools/test_evaluator_consensus.py \
             tools/test_ai_live_readiness.py \
+            tools/test_live_tool_evidence_acceptance.py \
             tools/test_provider_adapters.py \
             adapters/provider_common.py \
             adapters/provider_tool_bridge.py \
@@ -78,4 +80,5 @@ jobs:
             tools.test_tool_enabled_behavior_runner \
             tools.test_evaluator_consensus \
             tools.test_ai_live_readiness \
+            tools.test_live_tool_evidence_acceptance \
             tools.test_provider_adapters

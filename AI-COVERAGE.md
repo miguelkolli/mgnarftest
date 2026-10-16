@@ -33,6 +33,7 @@ Current scenario versions: **13** across **11** test IDs.
 | Receipt-backed provider tool-subject readiness | IMPLEMENTED / BLOCKED by evidence + trust root |
 | Live tool authorization evidence validator | IMPLEMENTED |
 | Provider/model tool capability evidence validator | IMPLEMENTED |
+| Evidence acceptance lifecycle validator | IMPLEMENTED / structural only |
 | Deterministic offline tool execution profile | IMPLEMENTED |
 | Offline subject tool-call orchestration | IMPLEMENTED |
 | Independent offline tool-session verifier | IMPLEMENTED |
@@ -43,6 +44,7 @@ Current scenario versions: **13** across **11** test IDs.
 | OpenAI/Gemini receipt-backed tool-evaluator support | IMPLEMENTED / mock-tested |
 | OpenAI/Gemini offline-tool subject translation bridge | IMPLEMENTED / mock-tested |
 | Provider-native continuation evidence binding | IMPLEMENTED / mock-tested |
+| Authenticated GitHub review proof for evidence acceptance | DEFERRED / trust-root dependent |
 | Credentialed live provider subject tool execution | DEFERRED / readiness BLOCKED |
 | Real network-enabled effect profile | DEFERRED |
 
@@ -52,8 +54,10 @@ The authorization evidence must match the exact MGnarfTest commit, provider/mode
 
 `READY` can no longer be obtained by passing boolean authorization/capability flags to the readiness library. Missing, tampered or mismatched evidence leaves the plan `BLOCKED`.
 
+The evidence acceptance lifecycle adds a separate frozen record for `PROPOSED -> REVIEW-A -> REVIEW-B -> ACCEPTED`. It enforces author/reviewer separation, exact evidence/commit review binding, external-reviewer membership, accepted revision and trust-root receipt requirements. The standalone validator deliberately reports only `STRUCTURALLY_VALID`; it does not authenticate GitHub identities.
+
 The provider subject bridge binds exact provider-native continuation context into the offline tool transcript and session receipt. OpenAI output/reasoning items and Gemini returned model Parts are preserved rather than reconstructed before receipt-backed tool results are returned.
 
 This is still protocol/evidence infrastructure. Live provider tool behavior remains `UNVERIFIED` until credentialed repeated execution is governed and independently verified.
 
-See `LIVE-TOOL-EVIDENCE.md`, `PROVIDER-ADAPTERS.md`, `TOOL-BEHAVIOR-AGGREGATE.md`, and `DEFERRED.md` for the trust boundaries.
+See `LIVE-TOOL-EVIDENCE.md`, `LIVE-TOOL-ACCEPTANCE.md`, `PROVIDER-ADAPTERS.md`, `TOOL-BEHAVIOR-AGGREGATE.md`, and `DEFERRED.md` for the trust boundaries.
