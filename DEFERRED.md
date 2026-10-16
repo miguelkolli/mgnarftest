@@ -14,7 +14,7 @@ These items are intentionally **not blockers** for continuing private-repository
 - Do not wire OpenAI/Gemini provider secrets into repository workflows while the canonical trust root remains `UNPROTECTED`.
 - After trust-root enforcement exists, add a credentialed live-run workflow that checks out an exact trusted commit and runs the existing readiness gate before provider access.
 - Capture immutable provider model snapshot/version/build identifiers when the provider exposes them; otherwise record the limitation.
-- Run real repeated model executions and verify every evidence bundle independently before making any AI behavior result claim.
+- Run real repeated model executions and verify every evidence bundle independently before making any live AI behavior result claim.
 - Add credentialed multi-subject orchestration for real cross-model runs. The evidence-only cross-model comparator is implemented, but it intentionally does not perform provider calls.
 
 ## External acceptance
@@ -25,7 +25,7 @@ These items are intentionally **not blockers** for continuing private-repository
 
 ## Later execution capabilities
 
-- Extend provider adapters with an explicit tool-call protocol only after the adapter can bind every model request/response to the implemented offline tool-agent session contract. The local/mock orchestration loop already exists; live OpenAI/Gemini tool calling does not.
-- Integrate tool-enabled scenario schema/versioning so tool-honesty and tool-fabrication scenarios can require actual executor evidence rather than prompt-only claims.
+- Extend provider adapters with an explicit tool-call protocol that binds every provider request/response to the implemented offline tool-agent session contract. Local/mock tool orchestration, tool-enabled scenario versioning, repeated-run execution and dual-evaluator aggregation exist; live OpenAI/Gemini tool calling does not.
 - Keep real network-enabled tools deferred until a separate isolated network policy, destination allowlist, effect boundary and evidence contract exist.
 - Add additional providers only behind the same adapter provenance, readiness and evidence-verification boundaries.
+- Add any future real-effect tool class only as a separate profile/version; never reinterpret the deterministic offline profile as permission for production effects.

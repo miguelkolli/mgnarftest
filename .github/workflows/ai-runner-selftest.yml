@@ -40,6 +40,10 @@ jobs:
             tools/offline_tool_agent.py \
             tools/verify_offline_tool_session.py \
             tools/tool_enabled_scenario.py \
+            tools/tool_enabled_behavior_runner.py \
+            tools/run_tool_behavior_repeated.py \
+            tools/verify_tool_behavior_evidence.py \
+            tools/verify_tool_behavior_bundle.py \
             tools/evaluator_consensus.py \
             tools/check_ai_live_readiness.py \
             tools/test_run_ai_behavior.py \
@@ -50,6 +54,7 @@ jobs:
             tools/test_offline_tool_profile.py \
             tools/test_offline_tool_agent.py \
             tools/test_tool_enabled_scenario.py \
+            tools/test_tool_enabled_behavior_runner.py \
             tools/test_evaluator_consensus.py \
             tools/test_ai_live_readiness.py \
             tools/test_provider_adapters.py \
@@ -68,6 +73,7 @@ jobs:
             tools.test_offline_tool_profile \
             tools.test_offline_tool_agent \
             tools.test_tool_enabled_scenario \
+            tools.test_tool_enabled_behavior_runner \
             tools.test_evaluator_consensus \
             tools.test_ai_live_readiness \
             tools.test_provider_adapters

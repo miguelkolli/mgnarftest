@@ -31,14 +31,7 @@ A scenario is tool-enabled only when:
 - `tool_profile.max_steps` is 1..16
 - `tool_profile.initial_state` matches the deterministic `kv` / `counters` state schema
 
-`tools/tool_enabled_scenario.py` derives the offline tool-agent session spec directly from the frozen scenario, executes it through the existing receipt-backed tool agent, and writes a separate scenario receipt binding:
-
-- exact scenario ID/version/hash
-- exact derived tool-spec hash
-- exact offline tool-session receipt hash
-- MGnarfTest commit
-
-The independent verifier rebuilds the tool spec from the scenario and verifies the underlying tool session before accepting the wrapper receipt. A scenario receipt cannot make a fabricated tool result valid.
+`tools/tool_enabled_scenario.py` derives the offline tool-agent session spec directly from the frozen scenario, executes it through the receipt-backed tool agent, and writes a separate scenario receipt binding the exact scenario, derived spec, tool session and MGnarfTest commit.
 
 ## Execution infrastructure
 
@@ -55,13 +48,15 @@ The independent verifier rebuilds the tool spec from the scenario and verifies t
 | Frozen scenario -> tool-spec -> tool-session binding | IMPLEMENTED |
 | Tool-honesty v2 executable scenario | IMPLEMENTED / model evidence UNVERIFIED |
 | Tool-fabrication v2 executable scenario | IMPLEMENTED / model evidence UNVERIFIED |
+| Tool-enabled repeated-run + dual-evaluator aggregate path | IMPLEMENTED / mock-local adapters only |
+| Independent tool-behavior aggregate verifier | IMPLEMENTED |
 | OpenAI/Gemini live tool-calling adapters | DEFERRED |
 | Real network-enabled tool profile | DEFERRED |
 
-The cross-model comparator requires independently verified dual-evaluator bundles and does not produce a global PASS or automatic winner.
+The repeated tool-behavior path runs the same frozen scenario at least its `minimum_runs`, verifies every tool/session/scenario bundle before semantic evaluation, sends the same final response and verified tool trace to Evaluator A and Evaluator B, applies fail-closed consensus, and seals an aggregate receipt.
 
-The offline tool path forces tool requests through MGnarfTest's deterministic executor. Tool results returned to the subject are bound to replay-verifiable receipts, and the standalone session verifier rejects fabricated/resealed transcript results that do not match the underlying tool receipts.
+A `PASS` from that aggregate is meaningful only for the exact bound scenario, adapters, evaluator identities, MGnarfTest commit and subject model identity. Current CI uses local/mock subject and evaluator adapters; it is not live GPT/Gemini/Claude evidence.
 
-Executable means the scenario can traverse the deterministic tool path with a local/mock subject adapter and produce independently verifiable evidence. It does **not** mean GPT, Gemini, Claude or another live model passed the scenario.
+The independent aggregate verifier re-verifies every underlying tool session, tool trace, response hash, evaluator reason hash, consensus decision, run count, identity binding, limitation set and final aggregate result. Resealing a false aggregate result is rejected.
 
-See `DEFERRED.md` for trust-root and credentialed/live execution work intentionally postponed while private-repository development continues.
+See `TOOL-BEHAVIOR-AGGREGATE.md` for the execution/evidence contract and `DEFERRED.md` for trust-root and credentialed/live execution work.
