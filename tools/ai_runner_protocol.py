@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import time
 from pathlib import Path
@@ -11,7 +12,9 @@ BLOCKING = {
     "EVALUATOR_IDENTITY_COLLISION", "SUBJECT_IDENTITY_DRIFT",
     "EVALUATOR_IDENTITY_DRIFT", "PARAMETER_DRIFT",
     "TARGET_POLICY_MISMATCH", "TOOL_CONFIGURATION_MISMATCH",
-    "NETWORK_CONFIGURATION_MISMATCH",
+    "NETWORK_CONFIGURATION_MISMATCH", "MODEL_ADAPTER_DRIFT",
+    "EVALUATOR_ADAPTER_DRIFT", "MODEL_ADAPTER_UNBOUND",
+    "EVALUATOR_ADAPTER_UNBOUND",
 }
 
 
@@ -65,6 +68,41 @@ def resolve_commit(explicit, root):
         if len(value) != 40 or any(c not in "0123456789abcdef" for c in value):
             raise ValueError("MGnarfTest commit must be exact 40-hex SHA")
     return value
+
+
+def _hash_file(path):
+    h = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def command_binding(command, root=None):
+    if not isinstance(command, list) or not command:
+        raise ValueError("adapter command must be non-empty list")
+    root = None if root is None else Path(root).resolve()
+    resolved = shutil.which(command[0]) or command[0]
+    candidates = [(0, resolved)] + [(index, value) for index, value in enumerate(command[1:], 1)]
+    files = []
+    for index, value in candidates:
+        path = Path(value)
+        if not path.is_file():
+            continue
+        resolved_path = path.resolve()
+        label = str(resolved_path)
+        if root is not None:
+            try:
+                label = str(resolved_path.relative_to(root))
+            except ValueError:
+                pass
+        files.append({"arg_index": index, "path": label, "sha256": _hash_file(resolved_path)})
+    return {
+        "argv_sha256": sha256(command),
+        "resolved_executable": str(Path(resolved).resolve()) if Path(resolved).is_file() else resolved,
+        "files": files,
+        "content_bound": bool(files),
+    }
 
 
 def _env(names):

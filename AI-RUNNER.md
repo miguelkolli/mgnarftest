@@ -69,6 +69,10 @@ If the evaluator has the exact same provider/model/version tuple as the subject,
 
 Each per-run receipt binds scenario ID/version, scenario SHA-256, context SHA-256, subject response SHA-256, evaluator reason SHA-256, model/evaluator identity, material parameter hash, tool/network configuration, transcript SHA-256, exact MGnarfTest commit when available, and the runner-file SHA-256.
 
+The harness also binds both adapter commands. For each subject/evaluator adapter it records the canonical argv hash, resolved executable identity and SHA-256 for executable/script files that can be resolved locally. The runner re-checks those bindings before and after adapter execution. If adapter content changes during the run, the result fails closed with `MODEL_ADAPTER_DRIFT` or `EVALUATOR_ADAPTER_DRIFT`. If no adapter executable/content can be bound, the aggregate is blocked with `MODEL_ADAPTER_UNBOUND` or `EVALUATOR_ADAPTER_UNBOUND`.
+
+This closes a provenance gap where an adapter could previously change while still presenting the same model/evaluator identity in its JSON response.
+
 `aggregate.json` binds every per-run receipt hash and the frozen aggregation policy. If the runner cannot bind to an exact MGnarfTest commit, an otherwise compliant result is limited to `LIMITATION_CONFIRMED`.
 
 These hashes are tamper-evident bindings, not a third-party signature. STABLE acceptance still requires the repository evidence/promotion path and the external-review rule.
@@ -78,3 +82,5 @@ These hashes are tamper-evident bindings, not a third-party signature. STABLE ac
 Adapters inherit only a small safe environment by default. Credentials must be explicitly passed by variable name using `--model-env NAME` or `--evaluator-env NAME`; credential values are not written to receipts.
 
 Runner v1 does not sandbox adapter filesystem or provider-transport network access. Adapters are trusted execution components and need separate review/isolation before STABLE evidence can rely on them.
+
+`execution.network` in an AI scenario describes network capability exposed to the tested model/agent. It does not describe the HTTPS transport an adapter may need in order to call an external model provider. Provider transport must remain adapter-owned and separately documented.

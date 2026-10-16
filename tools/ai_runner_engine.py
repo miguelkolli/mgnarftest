@@ -5,10 +5,16 @@ from pathlib import Path
 
 try:
     from .validate_ai_behavior import validate_scenario
-    from .ai_runner_protocol import BLOCKING, PER_RUN, evaluator, evaluator_binding, invoke, resolve_commit, seal, sha256, subject, subject_binding, verify
+    from .ai_runner_protocol import (
+        BLOCKING, PER_RUN, command_binding, evaluator, evaluator_binding,
+        invoke, resolve_commit, seal, sha256, subject, subject_binding, verify,
+    )
 except ImportError:
     from validate_ai_behavior import validate_scenario
-    from ai_runner_protocol import BLOCKING, PER_RUN, evaluator, evaluator_binding, invoke, resolve_commit, seal, sha256, subject, subject_binding, verify
+    from ai_runner_protocol import (
+        BLOCKING, PER_RUN, command_binding, evaluator, evaluator_binding,
+        invoke, resolve_commit, seal, sha256, subject, subject_binding, verify,
+    )
 
 
 def now():
@@ -54,18 +60,39 @@ def run_scenario(path, model_cmd, eval_cmd, *, runs, output_dir, timeout, model_
     s = validate_scenario(path)
     raw = json.loads(path.read_text())
     shash, chash = sha256(raw), sha256(s["stimulus"])
-    commit = resolve_commit(mgtest_commit, Path(__file__).resolve().parents[1])
-    harness = {"mgtest_commit": commit, "runner_sha256": sha256(Path(__file__).read_bytes()), "python": sys.version.split()[0]}
+    repo_root = Path(__file__).resolve().parents[1]
+    commit = resolve_commit(mgtest_commit, repo_root)
+    model_adapter = command_binding(model_cmd, repo_root)
+    evaluator_adapter = command_binding(eval_cmd, repo_root)
+    harness = {
+        "mgtest_commit": commit,
+        "runner_sha256": sha256(Path(__file__).read_bytes()),
+        "python": sys.version.split()[0],
+        "model_adapter": model_adapter,
+        "evaluator_adapter": evaluator_adapter,
+    }
     runs = s["execution"]["minimum_runs"] if runs is None else runs
     if runs < s["execution"]["minimum_runs"]:
         raise ValueError("requested runs below frozen minimum")
     out = Path(output_dir); receipts = []; limits = set()
     if commit is None:
         limits.add("MGTEST_RUNNER_COMMIT_UNAVAILABLE")
+    if not model_adapter["content_bound"]:
+        limits.add("MODEL_ADAPTER_UNBOUND")
+    if not evaluator_adapter["content_bound"]:
+        limits.add("EVALUATOR_ADAPTER_UNBOUND")
     sbinding = ebinding = None
 
     for index in range(1, runs+1):
         started = now()
+        if command_binding(model_cmd, repo_root) != model_adapter:
+            limits.add("MODEL_ADAPTER_DRIFT")
+            transcript, receipt = _error(s, shash, chash, harness, index, "MODEL_ADAPTER_DRIFT", started)
+            write(out/"transcripts"/f"run-{index:04d}.json", transcript)
+            write(out/"receipts"/f"run-{index:04d}.json", receipt)
+            verify(receipt); receipts.append(receipt)
+            continue
+
         request = {
             "protocol_version": 1, "kind": "mgtest.ai.subject", "run_index": index,
             "scenario": {"test_id": s["test_id"], "test_version": s["test_version"], "scenario_sha256": shash,
@@ -73,7 +100,10 @@ def run_scenario(path, model_cmd, eval_cmd, *, runs, output_dir, timeout, model_
                          "execution": s["execution"], "target_policy": s["target_policy"]},
         }
         subj, smeta = invoke(model_cmd, request, timeout, model_env)
-        if subj is None:
+        if command_binding(model_cmd, repo_root) != model_adapter:
+            limits.add("MODEL_ADAPTER_DRIFT")
+            transcript, receipt = _error(s, shash, chash, harness, index, "MODEL_ADAPTER_DRIFT", started)
+        elif subj is None:
             transcript, receipt = _error(s, shash, chash, harness, index, smeta["kind"], started)
         else:
             try:
@@ -97,35 +127,42 @@ def run_scenario(path, model_cmd, eval_cmd, *, runs, output_dir, timeout, model_
                 elif any(sbinding[k] != current[k] for k in ("parameters_sha256", "tool_configuration", "network_configuration")):
                     limits.add("PARAMETER_DRIFT")
 
-                ereq = {"protocol_version": 1, "kind": "mgtest.ai.evaluator", "run_index": index,
-                        "scenario": {"test_id": s["test_id"], "test_version": s["test_version"], "scenario_sha256": shash,
-                                     "purpose": s["purpose"], "stimulus": s["stimulus"], "evaluation": s["evaluation"], "limits": s["limits"]},
-                        "subject": subj}
-                ev, emeta = invoke(eval_cmd, ereq, timeout, evaluator_env)
-                if ev is None:
-                    transcript, receipt = _error(s, shash, chash, harness, index, emeta["kind"], started, subj)
+                if command_binding(eval_cmd, repo_root) != evaluator_adapter:
+                    limits.add("EVALUATOR_ADAPTER_DRIFT")
+                    transcript, receipt = _error(s, shash, chash, harness, index, "EVALUATOR_ADAPTER_DRIFT", started, subj)
                 else:
-                    try:
-                        ev = evaluator(ev)
-                    except ValueError as exc:
-                        transcript, receipt = _error(s, shash, chash, harness, index, type(exc).__name__, started, subj)
+                    ereq = {"protocol_version": 1, "kind": "mgtest.ai.evaluator", "run_index": index,
+                            "scenario": {"test_id": s["test_id"], "test_version": s["test_version"], "scenario_sha256": shash,
+                                         "purpose": s["purpose"], "stimulus": s["stimulus"], "evaluation": s["evaluation"], "limits": s["limits"]},
+                            "subject": subj}
+                    ev, emeta = invoke(eval_cmd, ereq, timeout, evaluator_env)
+                    if command_binding(eval_cmd, repo_root) != evaluator_adapter:
+                        limits.add("EVALUATOR_ADAPTER_DRIFT")
+                        transcript, receipt = _error(s, shash, chash, harness, index, "EVALUATOR_ADAPTER_DRIFT", started, subj)
+                    elif ev is None:
+                        transcript, receipt = _error(s, shash, chash, harness, index, emeta["kind"], started, subj)
                     else:
-                        ecur = evaluator_binding(ev)
-                        if ebinding is None: ebinding = ecur
-                        elif ebinding != ecur: limits.add("EVALUATOR_IDENTITY_DRIFT")
-                        if (subj["provider"], subj["model"], subj["immutable_version"]) == (ev["provider"], ev["model"], ev["immutable_version"]):
-                            limits.add("EVALUATOR_IDENTITY_COLLISION")
-                        transcript = {"schema_version": 1, "scenario": {"test_id": s["test_id"], "test_version": s["test_version"]},
-                                      "run_index": index, "subject_response": subj["response_text"], "evaluator_reason": ev["reason"], "error": None}
-                        receipt = seal({
-                            "schema_version": 1, "receipt_type": "mgtest.ai.run",
-                            "scenario": {"test_id": s["test_id"], "test_version": s["test_version"], "scenario_sha256": shash, "context_sha256": chash},
-                            "harness": harness, "run_index": index,
-                            "subject": {**current, "response_sha256": sha256(subj["response_text"].encode())},
-                            "evaluator": {**ecur, "reason_sha256": sha256(ev["reason"].encode())},
-                            "execution": {"started_at": started, "finished_at": now(), "subject_elapsed_ms": smeta["elapsed_ms"], "evaluator_elapsed_ms": emeta["elapsed_ms"]},
-                            "transcript_sha256": sha256(transcript), "result": ev["result"],
-                        })
+                        try:
+                            ev = evaluator(ev)
+                        except ValueError as exc:
+                            transcript, receipt = _error(s, shash, chash, harness, index, type(exc).__name__, started, subj)
+                        else:
+                            ecur = evaluator_binding(ev)
+                            if ebinding is None: ebinding = ecur
+                            elif ebinding != ecur: limits.add("EVALUATOR_IDENTITY_DRIFT")
+                            if (subj["provider"], subj["model"], subj["immutable_version"]) == (ev["provider"], ev["model"], ev["immutable_version"]):
+                                limits.add("EVALUATOR_IDENTITY_COLLISION")
+                            transcript = {"schema_version": 1, "scenario": {"test_id": s["test_id"], "test_version": s["test_version"]},
+                                          "run_index": index, "subject_response": subj["response_text"], "evaluator_reason": ev["reason"], "error": None}
+                            receipt = seal({
+                                "schema_version": 1, "receipt_type": "mgtest.ai.run",
+                                "scenario": {"test_id": s["test_id"], "test_version": s["test_version"], "scenario_sha256": shash, "context_sha256": chash},
+                                "harness": harness, "run_index": index,
+                                "subject": {**current, "response_sha256": sha256(subj["response_text"].encode())},
+                                "evaluator": {**ecur, "reason_sha256": sha256(ev["reason"].encode())},
+                                "execution": {"started_at": started, "finished_at": now(), "subject_elapsed_ms": smeta["elapsed_ms"], "evaluator_elapsed_ms": emeta["elapsed_ms"]},
+                                "transcript_sha256": sha256(transcript), "result": ev["result"],
+                            })
         write(out/"transcripts"/f"run-{index:04d}.json", transcript)
         write(out/"receipts"/f"run-{index:04d}.json", receipt)
         verify(receipt); receipts.append(receipt)
