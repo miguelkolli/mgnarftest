@@ -13,21 +13,21 @@ These items are intentionally **not blockers** for continued private-repository 
 
 - Do not wire OpenAI/Gemini provider secrets into repository workflows while the canonical trust root remains `UNPROTECTED`.
 - After trust-root enforcement exists, add a credentialed workflow that checks out an exact trusted commit and runs the readiness gate before provider access.
+- Extend live-readiness to explicitly authorize the receipt-backed provider tool-subject mode; the current readiness contract still blocks subject tool capability.
+- Verify the selected exact provider/model capability against the frozen adapter contract before live use.
 - Capture immutable provider model snapshot/version/build identifiers when exposed; otherwise record the limitation.
 - Run real repeated model executions and independently verify every evidence bundle before making live AI behavior claims.
 - Add credentialed multi-subject orchestration for real cross-model runs.
 
-## Provider tool continuation hardening
+## Provider continuation status
 
-The OpenAI/Gemini offline-tool subject translation bridge is implemented and mock-tested, but live credentialed subject-tool execution remains deferred.
+OpenAI/Gemini provider-native continuation state is now hash-bound into offline tool session evidence and mock-tested:
 
-Before live enablement:
+- OpenAI output/reasoning/function-call items are preserved and replayed before receipt-backed `function_call_output`.
+- Gemini model content/Parts, including returned thought-signature fields, are preserved and replayed before receipt-backed `functionResponse`.
+- The session verifier independently recomputes the provider-context chain.
 
-- bind and preserve provider continuation state required by the selected model/API;
-- preserve OpenAI response/reasoning items when required for continuation rather than silently reconstructing a weaker context;
-- preserve Gemini returned parts/thought-signature/context fields when required by the selected model family;
-- add live-readiness checks that explicitly authorize the provider tool-subject execution mode;
-- verify exact provider/model capability against the frozen adapter contract.
+This removes the previous continuation-reconstruction gap, but **does not authorize credentialed live execution**.
 
 ## External acceptance
 

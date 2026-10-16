@@ -46,44 +46,86 @@ def verify_bundle(spec_path, bundle_dir, expected_mgtest_commit=None):
     except ValueError as exc:
         raise ToolSessionEvidenceError(str(exc)) from exc
 
-    _exact(receipt, {
-        "schema_version", "receipt_type", "profile", "mgtest_commit", "runner_sha256",
-        "adapter_binding", "spec_sha256", "subject_binding", "transcript_sha256",
-        "tool_receipts", "final_state_sha256", "final_response_sha256", "limitations",
-        "status", "receipt_sha256",
-    }, "session")
-    if receipt["schema_version"] != 1 or receipt["receipt_type"] != "mgtest.ai.offline-tool-session":
+    _exact(
+        receipt,
+        {
+            "schema_version",
+            "receipt_type",
+            "profile",
+            "mgtest_commit",
+            "runner_sha256",
+            "adapter_binding",
+            "spec_sha256",
+            "subject_binding",
+            "transcript_sha256",
+            "provider_context_chain_sha256",
+            "tool_receipts",
+            "final_state_sha256",
+            "final_response_sha256",
+            "limitations",
+            "status",
+            "receipt_sha256",
+        },
+        "session",
+    )
+    if (
+        receipt["schema_version"] != 1
+        or receipt["receipt_type"] != "mgtest.ai.offline-tool-session"
+    ):
         raise ToolSessionEvidenceError("session type/version invalid")
     if receipt["profile"] != PROFILE_ID or receipt["status"] != "COMPLETED":
         raise ToolSessionEvidenceError("session profile/status invalid")
     commit = receipt["mgtest_commit"]
-    if commit is not None and (not isinstance(commit, str) or not HEX40.fullmatch(commit)):
+    if commit is not None and (
+        not isinstance(commit, str) or not HEX40.fullmatch(commit)
+    ):
         raise ToolSessionEvidenceError("session MGnarfTest commit invalid")
     if expected_mgtest_commit is not None and commit != expected_mgtest_commit:
         raise ToolSessionEvidenceError("session MGnarfTest commit mismatch")
-    if not isinstance(receipt["runner_sha256"], str) or not HEX64.fullmatch(receipt["runner_sha256"]):
+    if (
+        not isinstance(receipt["runner_sha256"], str)
+        or not HEX64.fullmatch(receipt["runner_sha256"])
+    ):
         raise ToolSessionEvidenceError("runner_sha256 invalid")
+    if (
+        not isinstance(receipt["provider_context_chain_sha256"], str)
+        or not HEX64.fullmatch(receipt["provider_context_chain_sha256"])
+    ):
+        raise ToolSessionEvidenceError("provider context chain hash invalid")
     verify_adapter_binding(receipt["adapter_binding"], "session.adapter_binding")
     if receipt["spec_sha256"] != sha256(spec):
         raise ToolSessionEvidenceError("spec hash mismatch")
     if receipt["transcript_sha256"] != sha256(transcript):
         raise ToolSessionEvidenceError("transcript hash mismatch")
 
-    _exact(transcript, {"schema_version", "profile", "spec_sha256", "steps"}, "transcript")
-    if transcript["schema_version"] != 1 or transcript["profile"] != PROFILE_ID or transcript["spec_sha256"] != receipt["spec_sha256"]:
+    _exact(
+        transcript,
+        {"schema_version", "profile", "spec_sha256", "steps"},
+        "transcript",
+    )
+    if (
+        transcript["schema_version"] != 1
+        or transcript["profile"] != PROFILE_ID
+        or transcript["spec_sha256"] != receipt["spec_sha256"]
+    ):
         raise ToolSessionEvidenceError("transcript header invalid")
     if not isinstance(transcript["steps"], list) or not transcript["steps"]:
         raise ToolSessionEvidenceError("transcript steps invalid")
 
     state = json.loads(json.dumps(spec["initial_state"]))
     expected_tool_hashes = []
+    provider_context_chain = []
     subject_binding = None
     final_response = None
     final_seen = False
     tool_index = 0
 
     for expected_step, item in enumerate(transcript["steps"], 1):
-        _exact(item, {"step", "action", "tool_result", "tool_receipt_sha256"}, f"step[{expected_step}]")
+        _exact(
+            item,
+            {"step", "action", "tool_result", "tool_receipt_sha256"},
+            f"step[{expected_step}]",
+        )
         if item["step"] != expected_step or final_seen:
             raise ToolSessionEvidenceError("transcript step ordering invalid")
         try:
@@ -96,23 +138,40 @@ def verify_bundle(spec_path, bundle_dir, expected_mgtest_commit=None):
         elif identity != subject_binding:
             raise ToolSessionEvidenceError("subject identity/parameter drift")
 
+        if "provider_context" in action:
+            provider_context_chain.append(action["provider_context"])
+
         if action["action"] == "final":
-            if item["tool_result"] is not None or item["tool_receipt_sha256"] is not None:
+            if (
+                item["tool_result"] is not None
+                or item["tool_receipt_sha256"] is not None
+            ):
                 raise ToolSessionEvidenceError("final step contains tool evidence")
             final_response = action["response_text"]
             final_seen = True
             continue
 
-        if not isinstance(item["tool_receipt_sha256"], str) or not HEX64.fullmatch(item["tool_receipt_sha256"]):
+        if (
+            not isinstance(item["tool_receipt_sha256"], str)
+            or not HEX64.fullmatch(item["tool_receipt_sha256"])
+        ):
             raise ToolSessionEvidenceError("tool receipt hash invalid")
         tool_index += 1
-        tool_receipt = load(bundle / "tool-receipts" / f"call-{tool_index:04d}.json")
+        tool_receipt = load(
+            bundle / "tool-receipts" / f"call-{tool_index:04d}.json"
+        )
         if tool_receipt.get("receipt_sha256") != item["tool_receipt_sha256"]:
             raise ToolSessionEvidenceError("tool receipt reference mismatch")
         plan = {
             "schema_version": 1,
             "profile": PROFILE_ID,
-            "calls": [{"call_id": action["call_id"], "tool": action["tool"], "arguments": action["arguments"]}],
+            "calls": [
+                {
+                    "call_id": action["call_id"],
+                    "tool": action["tool"],
+                    "arguments": action["arguments"],
+                }
+            ],
         }
         try:
             verified = verify_execution(plan, tool_receipt, state)
@@ -121,7 +180,9 @@ def verify_bundle(spec_path, bundle_dir, expected_mgtest_commit=None):
         state = verified["final_state"]
         actual_result = tool_receipt["executions"][0]["result"]
         if item["tool_result"] != actual_result:
-            raise ToolSessionEvidenceError("transcript tool result does not match execution receipt")
+            raise ToolSessionEvidenceError(
+                "transcript tool result does not match execution receipt"
+            )
         expected_tool_hashes.append(tool_receipt["receipt_sha256"])
 
     if not final_seen or final_response is None:
@@ -130,11 +191,17 @@ def verify_bundle(spec_path, bundle_dir, expected_mgtest_commit=None):
         raise ToolSessionEvidenceError("session tool receipt list mismatch")
     if receipt["subject_binding"] != subject_binding:
         raise ToolSessionEvidenceError("session subject binding mismatch")
+    if receipt["provider_context_chain_sha256"] != sha256(provider_context_chain):
+        raise ToolSessionEvidenceError("provider continuation context chain mismatch")
     if receipt["final_state_sha256"] != sha256(state):
         raise ToolSessionEvidenceError("final state hash mismatch")
     if receipt["final_response_sha256"] != sha256(final_response.encode()):
         raise ToolSessionEvidenceError("final response hash mismatch")
-    expected_limits = [] if subject_binding["immutable_version"] is not None else ["SUBJECT_MODEL_VERSION_MUTABLE_OR_UNAVAILABLE"]
+    expected_limits = (
+        []
+        if subject_binding["immutable_version"] is not None
+        else ["SUBJECT_MODEL_VERSION_MUTABLE_OR_UNAVAILABLE"]
+    )
     if receipt["limitations"] != expected_limits:
         raise ToolSessionEvidenceError("session limitations mismatch")
     return {
@@ -143,18 +210,26 @@ def verify_bundle(spec_path, bundle_dir, expected_mgtest_commit=None):
         "tool_calls": len(expected_tool_hashes),
         "subject_binding": subject_binding,
         "limitations": expected_limits,
+        "provider_contexts": len(provider_context_chain),
+        "provider_context_chain_sha256": receipt[
+            "provider_context_chain_sha256"
+        ],
         "session_receipt_sha256": receipt["receipt_sha256"],
     }
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(description="Verify an offline MGnarfTest tool-agent evidence bundle.")
+    p = argparse.ArgumentParser(
+        description="Verify an offline MGnarfTest tool-agent evidence bundle."
+    )
     p.add_argument("--spec", required=True)
     p.add_argument("--bundle", required=True)
     p.add_argument("--expected-mgtest-commit")
     args = p.parse_args(argv)
     try:
-        result = verify_bundle(args.spec, args.bundle, args.expected_mgtest_commit)
+        result = verify_bundle(
+            args.spec, args.bundle, args.expected_mgtest_commit
+        )
     except ToolSessionEvidenceError as exc:
         print(f"FAIL: {exc}")
         return 1

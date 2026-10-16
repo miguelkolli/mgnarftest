@@ -1,3 +1,4 @@
+import hashlib
 import json
 
 try:
@@ -14,6 +15,9 @@ INTERNAL_TO_PROVIDER = {
     "counter.increment": "mgtest_counter_increment",
 }
 PROVIDER_TO_INTERNAL = {value: key for key, value in INTERNAL_TO_PROVIDER.items()}
+
+OPENAI_CONTEXT_KIND = "openai.response.output.v1"
+GEMINI_CONTEXT_KIND = "gemini.candidate.content.v1"
 
 OPENAI_TOOLS = [
     {
@@ -85,6 +89,53 @@ GEMINI_FUNCTION_DECLARATIONS = [
 ]
 
 
+def _canonical(value):
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+
+
+def _context_sha(provider, kind, payload):
+    return hashlib.sha256(
+        _canonical({"provider": provider, "kind": kind, "payload": payload})
+    ).hexdigest()
+
+
+def make_provider_context(provider, kind, payload):
+    if not isinstance(provider, str) or not provider:
+        raise AdapterError("provider continuation provider invalid")
+    if not isinstance(kind, str) or not kind:
+        raise AdapterError("provider continuation kind invalid")
+    if not isinstance(payload, (dict, list)):
+        raise AdapterError("provider continuation payload must be object/list")
+    value = {
+        "provider": provider,
+        "kind": kind,
+        "payload": json.loads(json.dumps(payload)),
+    }
+    value["sha256"] = _context_sha(provider, kind, value["payload"])
+    return value
+
+
+def verify_provider_context(value, *, provider=None, kind=None):
+    if not isinstance(value, dict) or set(value) != {"provider", "kind", "payload", "sha256"}:
+        raise AdapterError("provider continuation context fields invalid")
+    if not isinstance(value["provider"], str) or not value["provider"]:
+        raise AdapterError("provider continuation provider invalid")
+    if not isinstance(value["kind"], str) or not value["kind"]:
+        raise AdapterError("provider continuation kind invalid")
+    if not isinstance(value["payload"], (dict, list)):
+        raise AdapterError("provider continuation payload invalid")
+    if not isinstance(value["sha256"], str) or len(value["sha256"]) != 64:
+        raise AdapterError("provider continuation hash invalid")
+    expected = _context_sha(value["provider"], value["kind"], value["payload"])
+    if value["sha256"] != expected:
+        raise AdapterError("provider continuation hash mismatch")
+    if provider is not None and value["provider"] != provider:
+        raise AdapterError("provider continuation provider mismatch")
+    if kind is not None and value["kind"] != kind:
+        raise AdapterError("provider continuation kind mismatch")
+    return json.loads(json.dumps(value))
+
+
 def split_task(task):
     if not isinstance(task, str) or not task.startswith(TASK_PREFIX) or TASK_SPLIT not in task:
         raise AdapterError("offline tool task format invalid")
@@ -96,7 +147,11 @@ def split_task(task):
 
 
 def require_offline_tool_request(request):
-    if not isinstance(request, dict) or request.get("protocol_version") != 1 or request.get("kind") != "mgtest.ai.offline-tool-subject":
+    if (
+        not isinstance(request, dict)
+        or request.get("protocol_version") != 1
+        or request.get("kind") != "mgtest.ai.offline-tool-subject"
+    ):
         raise AdapterError("unsupported offline tool subject request")
     session = request.get("session")
     history = request.get("history")
@@ -111,8 +166,13 @@ def require_offline_tool_request(request):
 
 
 def _history_item(item, index):
-    expected = {"step", "action", "call_id", "tool", "arguments", "result", "tool_receipt_sha256"}
-    if not isinstance(item, dict) or set(item) != expected or item.get("action") != "tool_call":
+    base = {"step", "action", "call_id", "tool", "arguments", "result", "tool_receipt_sha256"}
+    if not isinstance(item, dict):
+        raise AdapterError(f"offline tool history[{index}] invalid")
+    keys = set(item)
+    if keys != base and keys != base | {"provider_context"}:
+        raise AdapterError(f"offline tool history[{index}] invalid")
+    if item.get("action") != "tool_call":
         raise AdapterError(f"offline tool history[{index}] invalid")
     if not isinstance(item.get("step"), int) or item["step"] < 1:
         raise AdapterError(f"offline tool history[{index}].step invalid")
@@ -125,52 +185,9 @@ def _history_item(item, index):
         raise AdapterError(f"offline tool history[{index}] arguments/result invalid")
     if len(item["tool_receipt_sha256"]) != 64:
         raise AdapterError(f"offline tool history[{index}] receipt hash invalid")
+    if "provider_context" in item:
+        verify_provider_context(item["provider_context"])
     return item
-
-
-def openai_input(user_message, history):
-    items = [{"role": "user", "content": user_message}]
-    for index, raw in enumerate(history):
-        item = _history_item(raw, index)
-        name = INTERNAL_TO_PROVIDER[item["tool"]]
-        items.append({
-            "type": "function_call",
-            "call_id": item["call_id"],
-            "name": name,
-            "arguments": json.dumps(item["arguments"], sort_keys=True, separators=(",", ":")),
-        })
-        items.append({
-            "type": "function_call_output",
-            "call_id": item["call_id"],
-            "output": json.dumps({
-                "result": item["result"],
-                "mgtest_tool_receipt_sha256": item["tool_receipt_sha256"],
-            }, sort_keys=True, separators=(",", ":")),
-        })
-    return items
-
-
-def gemini_contents(user_message, history):
-    contents = [{"role": "user", "parts": [{"text": user_message}]}]
-    for index, raw in enumerate(history):
-        item = _history_item(raw, index)
-        name = INTERNAL_TO_PROVIDER[item["tool"]]
-        contents.append({
-            "role": "model",
-            "parts": [{"functionCall": {"id": item["call_id"], "name": name, "args": item["arguments"]}}],
-        })
-        contents.append({
-            "role": "user",
-            "parts": [{"functionResponse": {
-                "id": item["call_id"],
-                "name": name,
-                "response": {
-                    "result": item["result"],
-                    "mgtest_tool_receipt_sha256": item["tool_receipt_sha256"],
-                },
-            }}],
-        })
-    return contents
 
 
 def _arguments(raw, where):
@@ -186,13 +203,162 @@ def _arguments(raw, where):
     return value
 
 
-def action(provider, model, immutable_version, parameters, *, call_id=None, provider_name=None, arguments=None, final_text=None):
+def _openai_context_items(item, index):
+    if "provider_context" not in item:
+        raise AdapterError(
+            f"offline tool history[{index}] OpenAI continuation context required"
+        )
+    context = verify_provider_context(
+        item["provider_context"], provider="openai", kind=OPENAI_CONTEXT_KIND
+    )
+    payload = context["payload"]
+    if not isinstance(payload, dict) or set(payload) != {"response_id", "output"}:
+        raise AdapterError("OpenAI continuation payload shape invalid")
+    response_id = payload["response_id"]
+    if response_id is not None and (
+        not isinstance(response_id, str) or not response_id
+    ):
+        raise AdapterError("OpenAI continuation response_id invalid")
+    output = payload["output"]
+    if not isinstance(output, list) or not output:
+        raise AdapterError("OpenAI continuation output invalid")
+    calls = [
+        value
+        for value in output
+        if isinstance(value, dict) and value.get("type") == "function_call"
+    ]
+    if len(calls) != 1:
+        raise AdapterError("OpenAI continuation must bind exactly one function call")
+    call = calls[0]
+    if (
+        call.get("call_id") != item["call_id"]
+        or call.get("name") != INTERNAL_TO_PROVIDER[item["tool"]]
+    ):
+        raise AdapterError("OpenAI continuation function binding mismatch")
+    if (
+        _arguments(call.get("arguments"), "OpenAI continuation function")
+        != item["arguments"]
+    ):
+        raise AdapterError("OpenAI continuation arguments mismatch")
+    return json.loads(json.dumps(output))
+
+
+def openai_input(user_message, history):
+    items = [{"role": "user", "content": user_message}]
+    for index, raw in enumerate(history):
+        item = _history_item(raw, index)
+        items.extend(_openai_context_items(item, index))
+        items.append(
+            {
+                "type": "function_call_output",
+                "call_id": item["call_id"],
+                "output": json.dumps(
+                    {
+                        "result": item["result"],
+                        "mgtest_tool_receipt_sha256": item[
+                            "tool_receipt_sha256"
+                        ],
+                    },
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
+            }
+        )
+    return items
+
+
+def _gemini_context_content(item, index):
+    if "provider_context" not in item:
+        raise AdapterError(
+            f"offline tool history[{index}] Gemini continuation context required"
+        )
+    context = verify_provider_context(
+        item["provider_context"],
+        provider="google-gemini",
+        kind=GEMINI_CONTEXT_KIND,
+    )
+    payload = context["payload"]
+    if not isinstance(payload, dict) or set(payload) != {"content"}:
+        raise AdapterError("Gemini continuation payload shape invalid")
+    content = payload["content"]
+    if (
+        not isinstance(content, dict)
+        or content.get("role") != "model"
+        or not isinstance(content.get("parts"), list)
+    ):
+        raise AdapterError("Gemini continuation content invalid")
+    calls = [
+        part.get("functionCall")
+        for part in content["parts"]
+        if isinstance(part, dict)
+        and isinstance(part.get("functionCall"), dict)
+    ]
+    if len(calls) != 1:
+        raise AdapterError("Gemini continuation must bind exactly one function call")
+    call = calls[0]
+    if (
+        call.get("id") != item["call_id"]
+        or call.get("name") != INTERNAL_TO_PROVIDER[item["tool"]]
+    ):
+        raise AdapterError("Gemini continuation function binding mismatch")
+    if (
+        _arguments(call.get("args", {}), "Gemini continuation function")
+        != item["arguments"]
+    ):
+        raise AdapterError("Gemini continuation arguments mismatch")
+    return json.loads(json.dumps(content))
+
+
+def gemini_contents(user_message, history):
+    contents = [{"role": "user", "parts": [{"text": user_message}]}]
+    for index, raw in enumerate(history):
+        item = _history_item(raw, index)
+        name = INTERNAL_TO_PROVIDER[item["tool"]]
+        contents.append(_gemini_context_content(item, index))
+        contents.append(
+            {
+                "role": "user",
+                "parts": [
+                    {
+                        "functionResponse": {
+                            "id": item["call_id"],
+                            "name": name,
+                            "response": {
+                                "result": item["result"],
+                                "mgtest_tool_receipt_sha256": item[
+                                    "tool_receipt_sha256"
+                                ],
+                            },
+                        }
+                    }
+                ],
+            }
+        )
+    return contents
+
+
+def action(
+    provider,
+    model,
+    immutable_version,
+    parameters,
+    *,
+    call_id=None,
+    provider_name=None,
+    arguments=None,
+    final_text=None,
+    provider_context=None,
+):
     common = {
         "provider": provider,
         "model": model,
         "immutable_version": immutable_version,
         "parameters": parameters,
     }
+    if provider_context is not None:
+        common["provider_context"] = verify_provider_context(
+            provider_context, provider=provider
+        )
     if provider_name is not None:
         internal = PROVIDER_TO_INTERNAL.get(provider_name)
         if internal is None:

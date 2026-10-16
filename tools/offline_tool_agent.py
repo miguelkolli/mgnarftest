@@ -13,6 +13,7 @@ except ImportError:
 
 HEX40 = re.compile(r"^[0-9a-f]{40}$")
 MAX_SESSION_STEPS = 16
+PROVIDER_CONTEXT_REQUIRED = {"openai", "google-gemini"}
 
 
 class ToolAgentError(ValueError):
@@ -30,6 +31,25 @@ def _text(value, where):
     return value
 
 
+def _provider_context(value, provider):
+    _exact(value, {"provider", "kind", "payload", "sha256"}, "adapter.provider_context")
+    if value["provider"] != provider:
+        raise ToolAgentError("adapter.provider_context provider mismatch")
+    _text(value["kind"], "adapter.provider_context.kind")
+    if not isinstance(value["payload"], (dict, list)):
+        raise ToolAgentError("adapter.provider_context.payload invalid")
+    if not isinstance(value["sha256"], str) or len(value["sha256"]) != 64:
+        raise ToolAgentError("adapter.provider_context.sha256 invalid")
+    expected = sha256({
+        "provider": value["provider"],
+        "kind": value["kind"],
+        "payload": value["payload"],
+    })
+    if value["sha256"] != expected:
+        raise ToolAgentError("adapter.provider_context hash mismatch")
+    return json.loads(json.dumps(value))
+
+
 def validate_spec(spec):
     _exact(spec, {"schema_version", "profile", "task", "max_steps", "initial_state"}, "spec")
     if spec["schema_version"] != 1 or spec["profile"] != PROFILE_ID:
@@ -39,8 +59,20 @@ def validate_spec(spec):
     if not isinstance(max_steps, int) or isinstance(max_steps, bool) or not 1 <= max_steps <= MAX_SESSION_STEPS:
         raise ToolAgentError(f"spec.max_steps must be 1..{MAX_SESSION_STEPS}")
     try:
-        # Validate initial state without executing a user plan.
-        execute_plan({"schema_version": 1, "profile": PROFILE_ID, "calls": [{"call_id": "__validate__", "tool": "kv.get", "arguments": {"key": "__validate__"}}]}, spec["initial_state"])
+        execute_plan(
+            {
+                "schema_version": 1,
+                "profile": PROFILE_ID,
+                "calls": [
+                    {
+                        "call_id": "__validate__",
+                        "tool": "kv.get",
+                        "arguments": {"key": "__validate__"},
+                    }
+                ],
+            },
+            spec["initial_state"],
+        )
     except ToolProfileError as exc:
         raise ToolAgentError(f"spec.initial_state invalid: {exc}") from exc
     return json.loads(json.dumps(spec))
@@ -60,10 +92,19 @@ def parse_action(value):
         raise ToolAgentError("adapter response must be object")
     action = value.get("action")
     common = {"provider", "model", "immutable_version", "parameters", "action"}
+    optional = {"provider_context"} if "provider_context" in value else set()
     if action == "tool_call":
-        _exact(value, common | {"call_id", "tool", "arguments"}, "adapter response")
+        _exact(
+            value,
+            common | optional | {"call_id", "tool", "arguments"},
+            "adapter response",
+        )
     elif action == "final":
-        _exact(value, common | {"response_text"}, "adapter response")
+        _exact(
+            value,
+            common | optional | {"response_text"},
+            "adapter response",
+        )
     else:
         raise ToolAgentError("adapter response action invalid")
     _text(value["provider"], "adapter.provider")
@@ -72,6 +113,12 @@ def parse_action(value):
         _text(value["immutable_version"], "adapter.immutable_version")
     if not isinstance(value["parameters"], dict):
         raise ToolAgentError("adapter.parameters must be object")
+
+    if "provider_context" in value:
+        _provider_context(value["provider_context"], value["provider"])
+    elif value["provider"] in PROVIDER_CONTEXT_REQUIRED:
+        raise ToolAgentError("PROVIDER_CONTINUATION_CONTEXT_MISSING")
+
     if action == "tool_call":
         _text(value["call_id"], "adapter.call_id")
         _text(value["tool"], "adapter.tool")
@@ -119,6 +166,7 @@ def run_tool_session(spec_path, model_cmd, *, output_dir, timeout, model_env, mg
     history = []
     transcript_steps = []
     tool_receipts = []
+    provider_context_chain = []
     seen_call_ids = set()
     subject_binding = None
     limitations = set()
@@ -142,10 +190,26 @@ def run_tool_session(spec_path, model_cmd, *, output_dir, timeout, model_env, mg
         elif identity != subject_binding:
             raise ToolAgentError("SUBJECT_IDENTITY_OR_PARAMETER_DRIFT")
 
+        if "provider_context" in action:
+            provider_context_chain.append(action["provider_context"])
+
         if action["action"] == "final":
             final_response = action["response_text"]
-            transcript_steps.append({"step": step, "action": action, "tool_result": None, "tool_receipt_sha256": None})
-            history.append({"step": step, "action": "final", "response_text": final_response})
+            transcript_steps.append(
+                {
+                    "step": step,
+                    "action": action,
+                    "tool_result": None,
+                    "tool_receipt_sha256": None,
+                }
+            )
+            history.append(
+                {
+                    "step": step,
+                    "action": "final",
+                    "response_text": final_response,
+                }
+            )
             break
 
         call_id = action["call_id"]
@@ -155,7 +219,13 @@ def run_tool_session(spec_path, model_cmd, *, output_dir, timeout, model_env, mg
         plan = {
             "schema_version": 1,
             "profile": PROFILE_ID,
-            "calls": [{"call_id": call_id, "tool": action["tool"], "arguments": action["arguments"]}],
+            "calls": [
+                {
+                    "call_id": call_id,
+                    "tool": action["tool"],
+                    "arguments": action["arguments"],
+                }
+            ],
         }
         before_state = json.loads(json.dumps(state))
         try:
@@ -166,10 +236,20 @@ def run_tool_session(spec_path, model_cmd, *, output_dir, timeout, model_env, mg
         result = tool_receipt["executions"][0]["result"]
         tool_path = out / "tool-receipts" / f"call-{len(tool_receipts)+1:04d}.json"
         tool_path.parent.mkdir(parents=True, exist_ok=True)
-        tool_path.write_text(json.dumps(tool_receipt, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+        tool_path.write_text(
+            json.dumps(tool_receipt, sort_keys=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
         tool_receipts.append(tool_receipt["receipt_sha256"])
-        transcript_steps.append({"step": step, "action": action, "tool_result": result, "tool_receipt_sha256": tool_receipt["receipt_sha256"]})
-        history.append({
+        transcript_steps.append(
+            {
+                "step": step,
+                "action": action,
+                "tool_result": result,
+                "tool_receipt_sha256": tool_receipt["receipt_sha256"],
+            }
+        )
+        history_item = {
             "step": step,
             "action": "tool_call",
             "call_id": call_id,
@@ -177,7 +257,10 @@ def run_tool_session(spec_path, model_cmd, *, output_dir, timeout, model_env, mg
             "arguments": action["arguments"],
             "result": result,
             "tool_receipt_sha256": tool_receipt["receipt_sha256"],
-        })
+        }
+        if "provider_context" in action:
+            history_item["provider_context"] = action["provider_context"]
+        history.append(history_item)
 
     if final_response is None:
         raise ToolAgentError("MAX_STEPS_EXHAUSTED_WITHOUT_FINAL")
@@ -189,31 +272,43 @@ def run_tool_session(spec_path, model_cmd, *, output_dir, timeout, model_env, mg
         "steps": transcript_steps,
     }
     out.mkdir(parents=True, exist_ok=True)
-    (out / "transcript.json").write_text(json.dumps(transcript, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-    receipt = seal({
-        "schema_version": 1,
-        "receipt_type": "mgtest.ai.offline-tool-session",
-        "profile": PROFILE_ID,
-        "mgtest_commit": commit,
-        "runner_sha256": sha256(Path(__file__).read_bytes()),
-        "adapter_binding": adapter,
-        "spec_sha256": spec_hash,
-        "subject_binding": subject_binding,
-        "transcript_sha256": sha256(transcript),
-        "tool_receipts": tool_receipts,
-        "final_state_sha256": sha256(state),
-        "final_response_sha256": sha256(final_response.encode()),
-        "limitations": sorted(limitations),
-        "status": "COMPLETED",
-    })
+    (out / "transcript.json").write_text(
+        json.dumps(transcript, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    receipt = seal(
+        {
+            "schema_version": 1,
+            "receipt_type": "mgtest.ai.offline-tool-session",
+            "profile": PROFILE_ID,
+            "mgtest_commit": commit,
+            "runner_sha256": sha256(Path(__file__).read_bytes()),
+            "adapter_binding": adapter,
+            "spec_sha256": spec_hash,
+            "subject_binding": subject_binding,
+            "transcript_sha256": sha256(transcript),
+            "provider_context_chain_sha256": sha256(provider_context_chain),
+            "tool_receipts": tool_receipts,
+            "final_state_sha256": sha256(state),
+            "final_response_sha256": sha256(final_response.encode()),
+            "limitations": sorted(limitations),
+            "status": "COMPLETED",
+        }
+    )
     verify(receipt)
-    (out / "session.json").write_text(json.dumps(receipt, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    (out / "session.json").write_text(
+        json.dumps(receipt, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
     return receipt
 
 
 def main(argv=None):
     import argparse
-    p = argparse.ArgumentParser(description="Run a subject adapter against the deterministic offline tool profile.")
+
+    p = argparse.ArgumentParser(
+        description="Run a subject adapter against the deterministic offline tool profile."
+    )
     p.add_argument("--spec", required=True)
     p.add_argument("--model-adapter-json", required=True)
     p.add_argument("--output-dir", required=True)
@@ -223,16 +318,35 @@ def main(argv=None):
     args = p.parse_args(argv)
     try:
         model_cmd = json.loads(args.model_adapter_json)
-        if not isinstance(model_cmd, list) or not model_cmd or not all(isinstance(x, str) and x for x in model_cmd):
-            raise ToolAgentError("--model-adapter-json must be non-empty JSON string array")
+        if (
+            not isinstance(model_cmd, list)
+            or not model_cmd
+            or not all(isinstance(x, str) and x for x in model_cmd)
+        ):
+            raise ToolAgentError(
+                "--model-adapter-json must be non-empty JSON string array"
+            )
         receipt = run_tool_session(
-            args.spec, model_cmd, output_dir=args.output_dir, timeout=args.adapter_timeout,
-            model_env=args.model_env, mgtest_commit=args.mgtest_commit,
+            args.spec,
+            model_cmd,
+            output_dir=args.output_dir,
+            timeout=args.adapter_timeout,
+            model_env=args.model_env,
+            mgtest_commit=args.mgtest_commit,
         )
     except (json.JSONDecodeError, ToolAgentError) as exc:
         print(f"BLOCKED: {exc}", file=sys.stderr)
         return 2
-    print(json.dumps({"status": receipt["status"], "receipt_sha256": receipt["receipt_sha256"], "limitations": receipt["limitations"]}, sort_keys=True))
+    print(
+        json.dumps(
+            {
+                "status": receipt["status"],
+                "receipt_sha256": receipt["receipt_sha256"],
+                "limitations": receipt["limitations"],
+            },
+            sort_keys=True,
+        )
+    )
     return 0
 
 

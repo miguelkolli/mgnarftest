@@ -29,9 +29,9 @@ The evaluator does not execute tools.
 
 ## Offline-tool subject translation bridge
 
-The adapters now also understand `mgtest.ai.offline-tool-subject` in mock-tested form.
+The adapters understand `mgtest.ai.offline-tool-subject` in mock-tested form.
 
-The bridge exposes exactly three provider function names, mapped to the existing deterministic tools:
+The bridge exposes exactly three provider function names:
 
 ```text
 mgtest_kv_get              -> kv.get
@@ -39,42 +39,66 @@ mgtest_kv_put              -> kv.put
 mgtest_counter_increment   -> counter.increment
 ```
 
-No provider-selected arbitrary tool name is accepted.
+No provider-selected arbitrary tool name is accepted. Tool results are executed only by MGnarfTest's deterministic offline executor.
 
-The adapter:
+## Provider continuation evidence binding
 
-1. validates the closed MGnarfTest offline-tool request and allowlist;
-2. reconstructs the frozen system/user task;
-3. sends only the three declared deterministic functions;
-4. accepts at most one function/tool call per provider response;
-5. maps the provider call ID, name and arguments into the MGnarfTest subject-action protocol;
-6. after MGnarfTest executes the tool, round-trips the receipt-backed result using the same call ID;
-7. returns final provider text only when no function call is present.
+Provider-native continuation context is now part of the MGnarfTest evidence boundary.
 
-OpenAI uses Responses API function tools plus `function_call` / `function_call_output` items. Gemini uses `functionDeclarations` plus `functionCall` / `functionResponse` parts.
+Every OpenAI/Gemini offline-tool subject action carries a closed `provider_context` object:
 
-Tool results are executed only by MGnarfTest's deterministic offline executor. Provider code never executes them.
+```text
+provider
+context kind
+exact provider-native payload
+SHA-256(provider + kind + payload)
+```
+
+The offline tool runner stores these contexts in the transcript and seals a `provider_context_chain_sha256` into the session receipt. The standalone session verifier recomputes the chain instead of trusting the reported hash.
+
+For known provider subjects (`openai`, `google-gemini`), missing continuation context is fail-closed.
+
+### OpenAI
+
+The adapter preserves the exact Responses API `output` items from the tool-calling response, plus the response ID, inside the bound continuation context.
+
+On the next subject step it replays the preserved output items **unchanged** before appending the receipt-backed `function_call_output`. This preserves applicable reasoning/function-call items rather than reconstructing a weaker synthetic tool-call history.
+
+`parallel_tool_calls` is explicitly disabled for the deterministic sequential offline profile.
+
+### Gemini
+
+The adapter preserves the exact returned model `content` object and all of its `parts`.
+
+On the next subject step it replays that exact model content before the receipt-backed `functionResponse`. This retains provider-returned fields such as `thoughtSignature` in their original Part and preserves the exact function call ID used by the matching function response.
 
 ## Fail-closed rules
 
-The bridge rejects before execution/continuation when it sees:
+The bridge rejects before provider continuation when it sees:
 
 - an undeclared provider function name
 - more than one tool call in a single subject step
 - malformed tool arguments
 - malformed or mismatched offline-tool history
-- missing receipt hashes in prior tool results
+- missing or invalid tool receipt hashes
+- missing, resealed or cross-provider continuation context
+- provider continuation whose function call does not match the executed MGnarfTest call
 - a Gemini function call without an ID
-
-Subject tool history includes the MGnarfTest tool receipt hash alongside the actual result returned to the provider.
+- missing continuation context from a known OpenAI/Gemini offline-tool subject action
 
 ## Live-readiness limitation
 
-This subject bridge is **mock-tested protocol infrastructure, not credentialed live-provider evidence**.
+Continuation binding is **implemented and mock-tested**, but it does not make credentialed live-provider execution ready.
 
-Before live use, provider continuation state must be bound sufficiently for the selected provider/model family. In particular, provider-returned continuation/reasoning/context items that must be round-tripped must not be silently discarded. The repository trust root must also be enforceable before provider secrets are wired into a workflow.
+Live execution remains blocked until:
 
-Until those conditions are satisfied, live OpenAI/Gemini tool behavior remains `UNVERIFIED` and credentialed execution remains blocked.
+- the repository trust root is enforceable;
+- live-readiness explicitly authorizes the provider tool-subject mode;
+- the selected exact provider/model capability is checked against this adapter contract;
+- immutable model identity is captured when the provider exposes it;
+- real repeated executions are independently verified.
+
+Until then, live OpenAI/Gemini tool behavior remains `UNVERIFIED`.
 
 ## Immutable model identity
 
@@ -86,12 +110,17 @@ Adapters never infer an immutable model version from a mutable alias. `--immutab
 
 - normal subject/evaluator payloads
 - receipt-backed tool evaluators
-- OpenAI offline-tool subject call + result round-trip
-- Gemini offline-tool subject call + result round-trip
+- OpenAI offline-tool subject call + receipt result round-trip
+- exact OpenAI reasoning/output item replay
+- Gemini offline-tool subject call + receipt result round-trip
+- exact Gemini model-Part / thought-signature replay
 - strict one-call-per-step behavior
 - unknown-tool rejection
 - Gemini call-ID requirement
 - malformed history/receipt rejection before transport
+- continuation tamper and cross-provider continuation rejection
 - strict evaluator JSON handling
+
+`tools/test_offline_tool_agent.py` and the standalone session verifier additionally cover semantic recomputation of the provider continuation chain.
 
 CI performs no paid/live model calls and requires no provider secret.

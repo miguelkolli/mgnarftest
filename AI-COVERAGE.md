@@ -37,12 +37,15 @@ Current scenario versions: **13** across **11** test IDs.
 | Independent tool-behavior aggregate verifier | IMPLEMENTED |
 | OpenAI/Gemini normal evaluator support | IMPLEMENTED / mock-tested |
 | OpenAI/Gemini receipt-backed tool-evaluator support | IMPLEMENTED / mock-tested |
-| OpenAI/Gemini offline-tool **subject translation bridge** | IMPLEMENTED / mock-tested / NOT LIVE-READY |
-| Credentialed live provider subject tool execution | DEFERRED |
+| OpenAI/Gemini offline-tool subject translation bridge | IMPLEMENTED / mock-tested |
+| Provider-native continuation evidence binding | IMPLEMENTED / mock-tested |
+| Credentialed live provider subject tool execution | DEFERRED / readiness BLOCKED |
 | Real network-enabled effect profile | DEFERRED |
 
-The subject translation bridge maps only the three deterministic offline functions and round-trips provider call IDs plus receipt-backed results. It rejects unknown or parallel tool calls and malformed history.
+The provider subject bridge now binds the exact provider-native continuation context into the offline tool transcript and session receipt. OpenAI output/reasoning items and Gemini returned model Parts are preserved rather than reconstructed before receipt-backed tool results are returned.
 
-Mock-tested provider translation is protocol evidence only. Live provider tool behavior remains `UNVERIFIED` until provider continuation state, repository trust root, exact model identity and credentialed execution are all governed and verified.
+The standalone session verifier recomputes the provider-context chain. Missing, tampered, mismatched or cross-provider continuation evidence fails closed.
+
+This is still protocol/evidence infrastructure. Live provider tool behavior remains `UNVERIFIED` until the trust root, live-readiness authorization, exact model capability and credentialed repeated execution are governed and verified.
 
 See `PROVIDER-ADAPTERS.md`, `TOOL-BEHAVIOR-AGGREGATE.md`, and `DEFERRED.md` for the trust boundaries.
