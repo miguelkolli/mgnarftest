@@ -49,6 +49,16 @@ on:
         required: true
         default: "20"
         type: string
+      provider_tool_authorization_evidence:
+        description: "Optional repo-relative authorization evidence JSON path for tool-enabled subject"
+        required: false
+        default: ""
+        type: string
+      provider_model_tool_capability_evidence:
+        description: "Optional repo-relative provider/model capability evidence JSON path"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -69,8 +79,8 @@ jobs:
       - name: Verify exact checkout
         run: test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
 
-      - name: Compile readiness gate
-        run: python3 -m py_compile tools/check_ai_live_readiness.py
+      - name: Compile readiness gate and evidence validators
+        run: python3 -m py_compile tools/live_tool_evidence.py tools/check_ai_live_readiness.py
 
       - name: Evaluate dual-evaluator live-run readiness
         id: readiness
@@ -86,6 +96,8 @@ jobs:
             --evaluator-b-provider "${{ inputs.evaluator_b_provider }}" \
             --evaluator-b-model "${{ inputs.evaluator_b_model }}" \
             --runs "${{ inputs.runs }}" \
+            --provider-tool-authorization-evidence "${{ inputs.provider_tool_authorization_evidence }}" \
+            --provider-model-tool-capability-evidence "${{ inputs.provider_model_tool_capability_evidence }}" \
             --output live-readiness.json
 
       - name: Upload readiness evidence

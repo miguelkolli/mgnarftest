@@ -28,9 +28,11 @@ Current scenario versions: **13** across **11** test IDs.
 | Dual-evaluator fail-closed path | IMPLEMENTED |
 | Independent dual-evidence verifier | IMPLEMENTED |
 | Evidence-only cross-model comparison | IMPLEMENTED |
-| Live-readiness plan v3 | IMPLEMENTED / fail-closed |
+| Live-readiness plan v4 | IMPLEMENTED / fail-closed |
 | No-tool provider readiness | IMPLEMENTED / BLOCKED by current trust root |
-| Receipt-backed provider tool-subject readiness | IMPLEMENTED / BLOCKED by authority + capability + trust root |
+| Receipt-backed provider tool-subject readiness | IMPLEMENTED / BLOCKED by evidence + trust root |
+| Live tool authorization evidence validator | IMPLEMENTED |
+| Provider/model tool capability evidence validator | IMPLEMENTED |
 | Deterministic offline tool execution profile | IMPLEMENTED |
 | Offline subject tool-call orchestration | IMPLEMENTED |
 | Independent offline tool-session verifier | IMPLEMENTED |
@@ -44,12 +46,14 @@ Current scenario versions: **13** across **11** test IDs.
 | Credentialed live provider subject tool execution | DEFERRED / readiness BLOCKED |
 | Real network-enabled effect profile | DEFERRED |
 
-Readiness v3 binds the exact scenario hash, readiness-gate hash and provider/evaluator adapter hashes. For tool-enabled scenarios it also freezes the provider-specific tool-subject contract and the `provider-native-context-chain-v1` continuation evidence contract.
+Readiness v4 binds the exact scenario hash, readiness-gate hash and provider/evaluator adapter hashes. For tool-enabled scenarios it also requires two independent, hash-bound artifacts: governance authorization evidence and provider/model capability evidence.
 
-A tool-enabled plan cannot become `READY` merely because the repository trust root is later protected. It additionally requires explicit governance authorization for live provider tool-subject execution and verification of the exact provider/model tool capability. These are separate fail-closed blockers.
+The authorization evidence must match the exact MGnarfTest commit, provider/model, adapter SHA and frozen tool/continuation contracts. The capability evidence must separately match those bindings plus the provider-native continuation context kind and verifier identity/method.
+
+`READY` can no longer be obtained by passing boolean authorization/capability flags to the readiness library. Missing, tampered or mismatched evidence leaves the plan `BLOCKED`.
 
 The provider subject bridge binds exact provider-native continuation context into the offline tool transcript and session receipt. OpenAI output/reasoning items and Gemini returned model Parts are preserved rather than reconstructed before receipt-backed tool results are returned.
 
 This is still protocol/evidence infrastructure. Live provider tool behavior remains `UNVERIFIED` until credentialed repeated execution is governed and independently verified.
 
-See `PROVIDER-ADAPTERS.md`, `TOOL-BEHAVIOR-AGGREGATE.md`, and `DEFERRED.md` for the trust boundaries.
+See `LIVE-TOOL-EVIDENCE.md`, `PROVIDER-ADAPTERS.md`, `TOOL-BEHAVIOR-AGGREGATE.md`, and `DEFERRED.md` for the trust boundaries.

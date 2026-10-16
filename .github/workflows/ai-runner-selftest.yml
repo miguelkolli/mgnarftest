@@ -45,6 +45,7 @@ jobs:
             tools/verify_tool_behavior_evidence.py \
             tools/verify_tool_behavior_bundle.py \
             tools/evaluator_consensus.py \
+            tools/live_tool_evidence.py \
             tools/check_ai_live_readiness.py \
             tools/test_run_ai_behavior.py \
             tools/test_run_ai_behavior_dual.py \

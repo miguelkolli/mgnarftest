@@ -11,13 +11,17 @@ These items are intentionally **not blockers** for continued private-repository 
 
 ## Credentialed live provider execution
 
-The readiness gate now understands both normal no-tool subjects and the receipt-backed deterministic offline-tool subject mode. This does **not** authorize live tool execution.
+The readiness gate understands both normal no-tool subjects and the receipt-backed deterministic offline-tool subject mode. This does **not** authorize live tool execution.
+
+Tool-enabled readiness now requires two separate hash-bound evidence artifacts instead of caller-supplied boolean flags:
+
+- governance authorization evidence for the exact MGnarfTest commit/provider/model/adapter/tool contract;
+- provider/model capability evidence for the exact adapter + continuation contract, with verifier identity and verification method.
 
 Before credentialed provider-tool execution can become `READY`:
 
 - repository trust root must be `PROTECTED`/`ENFORCED` and governed promotion enabled;
-- provider tool-subject live execution must be explicitly authorized by governance (not by a CLI force flag);
-- the selected exact provider/model tool capability must be independently verified against the frozen adapter contract;
+- both evidence artifacts must validate against the exact readiness target;
 - exact MGnarfTest commit, scenario hash, readiness-gate hash and provider/evaluator adapter hashes must remain bound;
 - required provider secret **names** may be planned, but secret values must not enter readiness evidence;
 - immutable provider model snapshot/version/build identifiers must be captured when exposed; otherwise record the limitation;
@@ -26,13 +30,15 @@ Before credentialed provider-tool execution can become `READY`:
 
 Under the current private/unprotected trust root, live readiness therefore remains intentionally `BLOCKED`.
 
+The evidence file format itself is not sufficient authority while the repository trust root is unprotected. Once the trust root is enforced, acceptance of authorization/capability evidence must be governed by the protected review/promotion process.
+
 ## Provider continuation status
 
 OpenAI/Gemini provider-native continuation state is hash-bound into offline tool session evidence and mock-tested:
 
 - OpenAI output/reasoning/function-call items are preserved and replayed before receipt-backed `function_call_output`.
 - Gemini model content/Parts, including returned thought-signature fields, are preserved and replayed before receipt-backed `functionResponse`.
-- The session verifier independently recomputes the provider-context chain.
+- The session verifier independently recomputes the provider-context chain and checks provider-native call semantics.
 
 This removes the previous continuation-reconstruction gap, but **does not authorize credentialed live execution**.
 

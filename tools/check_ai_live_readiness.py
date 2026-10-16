@@ -6,6 +6,12 @@ import re
 from pathlib import Path
 
 from tools.enforce_trust_root import STABLE_PROMOTION_ENABLED, TRUST_ROOT_STATUS
+from tools.live_tool_evidence import (
+    LiveToolEvidenceError,
+    load_evidence,
+    validate_authorization,
+    validate_capability,
+)
 from tools.validate_ai_behavior import OFFLINE_TOOL_PROFILE, validate_scenario
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -68,15 +74,13 @@ def _alias(provider, model):
     return provider, model
 
 
-def _execution_mode(scenario, provider_tool_subject_authorized, provider_model_tool_capability_verified):
+def _execution_mode(scenario):
     execution = scenario["execution"]
     if execution["network"] is not False:
         raise ReadinessError("provider model network must remain false")
-
     tools = execution["tools"]
-    blockers = []
     if tools == "none":
-        return "dual-evaluator-v2", blockers
+        return "dual-evaluator-v2"
     if tools != OFFLINE_TOOL_PROFILE:
         raise ReadinessError(
             f"unsupported provider subject tool configuration: {tools}"
@@ -84,11 +88,39 @@ def _execution_mode(scenario, provider_tool_subject_authorized, provider_model_t
     profile = scenario.get("tool_profile")
     if not isinstance(profile, dict) or profile.get("profile") != OFFLINE_TOOL_PROFILE:
         raise ReadinessError("offline tool scenario profile binding missing")
-    if not provider_tool_subject_authorized:
-        blockers.append("PROVIDER_TOOL_SUBJECT_LIVE_NOT_AUTHORIZED")
-    if not provider_model_tool_capability_verified:
-        blockers.append("PROVIDER_MODEL_TOOL_CAPABILITY_UNVERIFIED")
-    return "tool-enabled-dual-evaluator-v1", blockers
+    return "tool-enabled-dual-evaluator-v1"
+
+
+def _invalid_summary(reason):
+    return {"status": "INVALID", "reason": reason}
+
+
+def _authorization_evidence(path, *, expected, blockers):
+    if not path:
+        blockers.append("PROVIDER_TOOL_SUBJECT_AUTHORIZATION_EVIDENCE_MISSING")
+        return {"status": "MISSING"}
+    try:
+        value, file_sha = load_evidence(path)
+        summary = validate_authorization(value, **expected)
+    except LiveToolEvidenceError as exc:
+        blockers.append("PROVIDER_TOOL_SUBJECT_AUTHORIZATION_EVIDENCE_INVALID")
+        return _invalid_summary(str(exc))
+    summary["file_sha256"] = file_sha
+    return summary
+
+
+def _capability_evidence(path, *, expected, blockers):
+    if not path:
+        blockers.append("PROVIDER_MODEL_TOOL_CAPABILITY_EVIDENCE_MISSING")
+        return {"status": "MISSING"}
+    try:
+        value, file_sha = load_evidence(path)
+        summary = validate_capability(value, **expected)
+    except LiveToolEvidenceError as exc:
+        blockers.append("PROVIDER_MODEL_TOOL_CAPABILITY_EVIDENCE_INVALID")
+        return _invalid_summary(str(exc))
+    summary["file_sha256"] = file_sha
+    return summary
 
 
 def build_plan(
@@ -104,8 +136,8 @@ def build_plan(
     runs,
     trust_root_status=None,
     stable_promotion_enabled=None,
-    provider_tool_subject_authorized=False,
-    provider_model_tool_capability_verified=False,
+    provider_tool_authorization_evidence=None,
+    provider_model_tool_capability_evidence=None,
 ):
     if not isinstance(mgtest_commit, str) or not HEX40.fullmatch(mgtest_commit):
         raise ReadinessError("mgtest_commit must be exact lowercase 40-hex SHA")
@@ -114,12 +146,6 @@ def build_plan(
     evaluator_b_model = _model(evaluator_b_model, "evaluator B")
     if not isinstance(runs, int) or isinstance(runs, bool) or runs < 1:
         raise ReadinessError("runs must be positive integer")
-    if not isinstance(provider_tool_subject_authorized, bool):
-        raise ReadinessError("provider_tool_subject_authorized must be boolean")
-    if not isinstance(provider_model_tool_capability_verified, bool):
-        raise ReadinessError(
-            "provider_model_tool_capability_verified must be boolean"
-        )
 
     path = Path(scenario_path).resolve()
     scenario = validate_scenario(path)
@@ -129,16 +155,11 @@ def build_plan(
             f"runs={runs} below frozen minimum_runs={execution['minimum_runs']}"
         )
 
-    execution_mode, capability_blockers = _execution_mode(
-        scenario,
-        provider_tool_subject_authorized,
-        provider_model_tool_capability_verified,
-    )
-
+    execution_mode = _execution_mode(scenario)
     subject = _provider(subject_provider)
     evaluator_a = _provider(evaluator_a_provider)
     evaluator_b = _provider(evaluator_b_provider)
-    blockers = list(capability_blockers)
+    blockers = []
     limitations = []
 
     subject_alias = _alias(subject_provider, subject_model)
@@ -182,6 +203,32 @@ def build_plan(
         "model_network": execution["network"],
     }
     if tool_enabled:
+        expected_common = {
+            "mgtest_commit": mgtest_commit,
+            "provider": subject_provider,
+            "model": subject_model,
+            "adapter_sha256": subject["adapter_sha256"],
+            "tool_subject_contract": subject["tool_subject_contract"],
+            "continuation_chain_contract": CONTINUATION_CHAIN_CONTRACT,
+        }
+        authorization = _authorization_evidence(
+            provider_tool_authorization_evidence,
+            expected=expected_common,
+            blockers=blockers,
+        )
+        capability_expected = dict(expected_common)
+        capability_expected["continuation_context_kind"] = subject[
+            "continuation_context_kind"
+        ]
+        capability = _capability_evidence(
+            provider_model_tool_capability_evidence,
+            expected=capability_expected,
+            blockers=blockers,
+        )
+        if capability.get("status") == "VALID" and capability.get(
+            "immutable_version"
+        ) is None:
+            limitations.append("CAPABILITY_EVIDENCE_MODEL_VERSION_MUTABLE_OR_UNAVAILABLE")
         subject_plan.update(
             {
                 "tool_subject_contract": subject["tool_subject_contract"],
@@ -189,8 +236,12 @@ def build_plan(
                     "continuation_context_kind"
                 ],
                 "continuation_chain_contract": CONTINUATION_CHAIN_CONTRACT,
-                "live_tool_subject_authorized": provider_tool_subject_authorized,
-                "model_tool_capability_verified": provider_model_tool_capability_verified,
+                "live_tool_subject_authorized": authorization.get("status")
+                == "VALID",
+                "model_tool_capability_verified": capability.get("status")
+                == "VALID",
+                "authorization_evidence": authorization,
+                "capability_evidence": capability,
             }
         )
 
@@ -209,7 +260,7 @@ def build_plan(
         }
 
     plan = {
-        "schema_version": 3,
+        "schema_version": 4,
         "plan_type": "mgtest.ai.live-readiness",
         "execution_mode": execution_mode,
         "mgtest_commit": mgtest_commit,
@@ -261,6 +312,8 @@ def main(argv=None):
     )
     p.add_argument("--evaluator-b-model", required=True)
     p.add_argument("--runs", type=int, required=True)
+    p.add_argument("--provider-tool-authorization-evidence")
+    p.add_argument("--provider-model-tool-capability-evidence")
     p.add_argument("--output")
     args = p.parse_args(argv)
     try:
@@ -274,6 +327,8 @@ def main(argv=None):
             evaluator_b_provider=args.evaluator_b_provider,
             evaluator_b_model=args.evaluator_b_model,
             runs=args.runs,
+            provider_tool_authorization_evidence=args.provider_tool_authorization_evidence,
+            provider_model_tool_capability_evidence=args.provider_model_tool_capability_evidence,
         )
     except ReadinessError as exc:
         print(f"BLOCKED: {exc}")
