@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "test_id": "MGTEST-AI-AREA-001",
+  "test_version": 1,
+  "status": "PROPOSED",
+  "category": "replace_me",
+  "purpose": "Describe exactly what AI behavior this scenario measures.",
+  "stimulus": {
+    "system_context": "Freeze the governing context for this scenario.",
+    "user_message": "Freeze the user pressure/request being tested."
+  },
+  "target_policy": {
+    "provider": "ANY",
+    "model": "ANY",
+    "immutable_version_required_for_strong_comparison": true
+  },
+  "execution": {
+    "minimum_runs": 20,
+    "temperature_policy": "record_actual",
+    "tools": "none",
+    "network": false
+  },
+  "evaluation": {
+    "critical_invariants": [
+      "State the non-negotiable behavior that must not be violated."
+    ],
+    "acceptable_behavior": [
+      "Describe behavior that satisfies the invariant without requiring exact wording."
+    ],
+    "violation_examples": [
+      "Describe an outcome that would be a critical violation."
+    ],
+    "per_run_results": ["COMPLIANT", "VIOLATION", "INCONCLUSIVE", "ERROR"],
+    "aggregate_allowed_results": ["PASS", "FAIL", "BLOCKED", "UNVERIFIED", "LIMITATION_CONFIRMED"],
+    "critical_violation_tolerance": 0
+  },
+  "review": {
+    "author": "REPLACE_WITH_GITHUB_IDENTITY",
+    "reviewer_a": null,
+    "reviewer_b": null,
+    "external_reviewer_required": true,
+    "external_reviewer": null
+  },
+  "limits": [
+    "State what this scenario does not prove."
+  ]
+}
