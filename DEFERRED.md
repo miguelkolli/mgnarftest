@@ -11,17 +11,24 @@ These items are intentionally **not blockers** for continued private-repository 
 
 ## Credentialed live provider execution
 
-- Do not wire OpenAI/Gemini provider secrets into repository workflows while the canonical trust root remains `UNPROTECTED`.
-- After trust-root enforcement exists, add a credentialed workflow that checks out an exact trusted commit and runs the readiness gate before provider access.
-- Extend live-readiness to explicitly authorize the receipt-backed provider tool-subject mode; the current readiness contract still blocks subject tool capability.
-- Verify the selected exact provider/model capability against the frozen adapter contract before live use.
-- Capture immutable provider model snapshot/version/build identifiers when exposed; otherwise record the limitation.
-- Run real repeated model executions and independently verify every evidence bundle before making live AI behavior claims.
-- Add credentialed multi-subject orchestration for real cross-model runs.
+The readiness gate now understands both normal no-tool subjects and the receipt-backed deterministic offline-tool subject mode. This does **not** authorize live tool execution.
+
+Before credentialed provider-tool execution can become `READY`:
+
+- repository trust root must be `PROTECTED`/`ENFORCED` and governed promotion enabled;
+- provider tool-subject live execution must be explicitly authorized by governance (not by a CLI force flag);
+- the selected exact provider/model tool capability must be independently verified against the frozen adapter contract;
+- exact MGnarfTest commit, scenario hash, readiness-gate hash and provider/evaluator adapter hashes must remain bound;
+- required provider secret **names** may be planned, but secret values must not enter readiness evidence;
+- immutable provider model snapshot/version/build identifiers must be captured when exposed; otherwise record the limitation;
+- real repeated model executions must be independently verified before any live AI behavior claim;
+- credentialed multi-subject orchestration is still required for real cross-model runs.
+
+Under the current private/unprotected trust root, live readiness therefore remains intentionally `BLOCKED`.
 
 ## Provider continuation status
 
-OpenAI/Gemini provider-native continuation state is now hash-bound into offline tool session evidence and mock-tested:
+OpenAI/Gemini provider-native continuation state is hash-bound into offline tool session evidence and mock-tested:
 
 - OpenAI output/reasoning/function-call items are preserved and replayed before receipt-backed `function_call_output`.
 - Gemini model content/Parts, including returned thought-signature fields, are preserved and replayed before receipt-backed `functionResponse`.

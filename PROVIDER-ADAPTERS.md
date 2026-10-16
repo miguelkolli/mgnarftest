@@ -43,16 +43,9 @@ No provider-selected arbitrary tool name is accepted. Tool results are executed 
 
 ## Provider continuation evidence binding
 
-Provider-native continuation context is now part of the MGnarfTest evidence boundary.
+Provider-native continuation context is part of the MGnarfTest evidence boundary.
 
-Every OpenAI/Gemini offline-tool subject action carries a closed `provider_context` object:
-
-```text
-provider
-context kind
-exact provider-native payload
-SHA-256(provider + kind + payload)
-```
+Every OpenAI/Gemini offline-tool subject action carries a closed `provider_context` object containing provider, context kind, exact provider-native payload and a SHA-256 binding.
 
 The offline tool runner stores these contexts in the transcript and seals a `provider_context_chain_sha256` into the session receipt. The standalone session verifier recomputes the chain instead of trusting the reported hash.
 
@@ -62,7 +55,7 @@ For known provider subjects (`openai`, `google-gemini`), missing continuation co
 
 The adapter preserves the exact Responses API `output` items from the tool-calling response, plus the response ID, inside the bound continuation context.
 
-On the next subject step it replays the preserved output items **unchanged** before appending the receipt-backed `function_call_output`. This preserves applicable reasoning/function-call items rather than reconstructing a weaker synthetic tool-call history.
+On the next subject step it replays the preserved output items unchanged before appending the receipt-backed `function_call_output`. This preserves applicable reasoning/function-call items rather than reconstructing a weaker synthetic history.
 
 `parallel_tool_calls` is explicitly disabled for the deterministic sequential offline profile.
 
@@ -72,9 +65,33 @@ The adapter preserves the exact returned model `content` object and all of its `
 
 On the next subject step it replays that exact model content before the receipt-backed `functionResponse`. This retains provider-returned fields such as `thoughtSignature` in their original Part and preserves the exact function call ID used by the matching function response.
 
+## Live-readiness v3
+
+The live-readiness planner now understands the receipt-backed deterministic tool-subject mode without enabling it.
+
+A readiness plan binds:
+
+- exact MGnarfTest commit
+- exact scenario hash
+- readiness-gate hash
+- subject/evaluator adapter hashes
+- provider/model aliases
+- required secret environment-variable **names** only
+- frozen tool configuration and network=false
+- provider-specific tool-subject continuation contract
+- `provider-native-context-chain-v1` evidence contract
+
+Tool-subject readiness has three independent authority conditions:
+
+1. repository trust root enforced;
+2. live provider tool-subject execution explicitly authorized by governance;
+3. exact provider/model tool capability verified against the frozen adapter contract.
+
+The second and third conditions are not CLI force flags. Under the current repository state the plan remains `BLOCKED`.
+
 ## Fail-closed rules
 
-The bridge rejects before provider continuation when it sees:
+The bridge/readiness boundary rejects when it sees:
 
 - an undeclared provider function name
 - more than one tool call in a single subject step
@@ -85,20 +102,14 @@ The bridge rejects before provider continuation when it sees:
 - provider continuation whose function call does not match the executed MGnarfTest call
 - a Gemini function call without an ID
 - missing continuation context from a known OpenAI/Gemini offline-tool subject action
+- unsupported subject tool configuration or model network capability
+- missing live tool-subject authority or unverified exact model capability
 
-## Live-readiness limitation
+## Live-execution limitation
 
-Continuation binding is **implemented and mock-tested**, but it does not make credentialed live-provider execution ready.
+Continuation binding and readiness planning are implemented and mock-tested, but credentialed live-provider execution is still intentionally blocked.
 
-Live execution remains blocked until:
-
-- the repository trust root is enforceable;
-- live-readiness explicitly authorizes the provider tool-subject mode;
-- the selected exact provider/model capability is checked against this adapter contract;
-- immutable model identity is captured when the provider exposes it;
-- real repeated executions are independently verified.
-
-Until then, live OpenAI/Gemini tool behavior remains `UNVERIFIED`.
+No live GPT/Gemini behavior result exists yet. Real provider/model behavior remains `UNVERIFIED` until the trust/authority/capability blockers are removed through governed evidence and real repeated executions are independently verified.
 
 ## Immutable model identity
 
@@ -106,21 +117,6 @@ Adapters never infer an immutable model version from a mutable alias. `--immutab
 
 ## Testing
 
-`tools/test_provider_adapters.py` uses mocked provider transport and covers:
-
-- normal subject/evaluator payloads
-- receipt-backed tool evaluators
-- OpenAI offline-tool subject call + receipt result round-trip
-- exact OpenAI reasoning/output item replay
-- Gemini offline-tool subject call + receipt result round-trip
-- exact Gemini model-Part / thought-signature replay
-- strict one-call-per-step behavior
-- unknown-tool rejection
-- Gemini call-ID requirement
-- malformed history/receipt rejection before transport
-- continuation tamper and cross-provider continuation rejection
-- strict evaluator JSON handling
-
-`tools/test_offline_tool_agent.py` and the standalone session verifier additionally cover semantic recomputation of the provider continuation chain.
+Mock/unit coverage includes normal subject/evaluator payloads, receipt-backed tool evaluators, exact provider continuation replay, continuation tamper/cross-provider rejection, offline session context-chain verification, readiness authority separation and strict evaluator JSON handling.
 
 CI performs no paid/live model calls and requires no provider secret.
