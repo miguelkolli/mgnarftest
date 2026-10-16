@@ -26,21 +26,13 @@ def _subject_identity(value):
     immutable = value.get("immutable_version")
     if immutable is not None and (not isinstance(immutable, str) or not immutable.strip()):
         raise ConsensusError("subject.immutable_version invalid")
-    return {
-        "provider": value["provider"],
-        "model": value["model"],
-        "immutable_version": immutable,
-    }
+    return {"provider": value["provider"], "model": value["model"], "immutable_version": immutable}
 
 
 def _eval_record(value):
     parsed = evaluator(dict(value))
     binding = evaluator_binding(parsed)
-    return {
-        "binding": binding,
-        "result": parsed["result"],
-        "reason_sha256": sha256(parsed["reason"].encode()),
-    }
+    return {"binding": binding, "result": parsed["result"], "reason_sha256": sha256(parsed["reason"].encode())}
 
 
 def _model_identity(value):
@@ -71,28 +63,30 @@ def _decision(a_result, b_result, blockers):
     return "DISAGREEMENT", "INCONCLUSIVE"
 
 
-def build_consensus_receipt(source_run_receipt_sha256, subject_binding, evaluator_a, evaluator_b):
-    if not isinstance(source_run_receipt_sha256, str) or not HEX64.fullmatch(source_run_receipt_sha256):
-        raise ConsensusError("source run receipt hash invalid")
+def build_consensus_record(subject_binding, evaluator_a, evaluator_b):
     subject = _subject_identity(subject_binding)
     a = _eval_record(evaluator_a)
     b = _eval_record(evaluator_b)
     blockers = _blockers(subject, a["binding"], b["binding"])
     status, result = _decision(a["result"], b["result"], blockers)
-    receipt = {
-        "schema_version": 1,
-        "receipt_type": "mgtest.ai.evaluator-consensus",
-        "source_run_receipt_sha256": source_run_receipt_sha256,
+    return {
         "subject_identity": subject,
         "evaluator_a": a,
         "evaluator_b": b,
-        "consensus": {
-            "status": status,
-            "result": result,
-            "blockers": blockers,
-        },
+        "consensus": {"status": status, "result": result, "blockers": blockers},
     }
-    return seal(receipt)
+
+
+def build_consensus_receipt(source_run_receipt_sha256, subject_binding, evaluator_a, evaluator_b):
+    if not isinstance(source_run_receipt_sha256, str) or not HEX64.fullmatch(source_run_receipt_sha256):
+        raise ConsensusError("source run receipt hash invalid")
+    record = build_consensus_record(subject_binding, evaluator_a, evaluator_b)
+    return seal({
+        "schema_version": 1,
+        "receipt_type": "mgtest.ai.evaluator-consensus",
+        "source_run_receipt_sha256": source_run_receipt_sha256,
+        **record,
+    })
 
 
 def _require_exact(value, keys, where):
@@ -120,6 +114,19 @@ def _verify_eval_record(value, where):
         raise ConsensusError(f"{where}.reason_sha256 invalid")
 
 
+def verify_consensus_record(record):
+    _require_exact(record, {"subject_identity", "evaluator_a", "evaluator_b", "consensus"}, "record")
+    subject = _subject_identity(record["subject_identity"])
+    _verify_eval_record(record["evaluator_a"], "evaluator_a")
+    _verify_eval_record(record["evaluator_b"], "evaluator_b")
+    blockers = _blockers(subject, record["evaluator_a"]["binding"], record["evaluator_b"]["binding"])
+    status, result = _decision(record["evaluator_a"]["result"], record["evaluator_b"]["result"], blockers)
+    _require_exact(record["consensus"], {"status", "result", "blockers"}, "consensus")
+    if record["consensus"] != {"status": status, "result": result, "blockers": blockers}:
+        raise ConsensusError("consensus decision mismatch")
+    return True
+
+
 def verify_consensus_receipt(receipt):
     try:
         verify(receipt)
@@ -134,14 +141,7 @@ def verify_consensus_receipt(receipt):
         raise ConsensusError("receipt type/version invalid")
     if not isinstance(receipt["source_run_receipt_sha256"], str) or not HEX64.fullmatch(receipt["source_run_receipt_sha256"]):
         raise ConsensusError("source run receipt hash invalid")
-    subject = _subject_identity(receipt["subject_identity"])
-    _verify_eval_record(receipt["evaluator_a"], "evaluator_a")
-    _verify_eval_record(receipt["evaluator_b"], "evaluator_b")
-    blockers = _blockers(subject, receipt["evaluator_a"]["binding"], receipt["evaluator_b"]["binding"])
-    status, result = _decision(receipt["evaluator_a"]["result"], receipt["evaluator_b"]["result"], blockers)
-    _require_exact(receipt["consensus"], {"status", "result", "blockers"}, "consensus")
-    if receipt["consensus"] != {"status": status, "result": result, "blockers": blockers}:
-        raise ConsensusError("consensus decision mismatch")
+    verify_consensus_record({k: receipt[k] for k in ("subject_identity", "evaluator_a", "evaluator_b", "consensus")})
     return True
 
 
