@@ -50,12 +50,22 @@ on:
         default: "20"
         type: string
       provider_tool_authorization_evidence:
-        description: "Optional repo-relative authorization evidence JSON path for tool-enabled subject"
+        description: "Optional authorization evidence JSON path for tool-enabled subject"
         required: false
         default: ""
         type: string
       provider_model_tool_capability_evidence:
-        description: "Optional repo-relative provider/model capability evidence JSON path"
+        description: "Optional provider/model capability evidence JSON path"
+        required: false
+        default: ""
+        type: string
+      provider_tool_authorization_acceptance:
+        description: "Optional acceptance record for authorization evidence"
+        required: false
+        default: ""
+        type: string
+      provider_model_tool_capability_acceptance:
+        description: "Optional acceptance record for capability evidence"
         required: false
         default: ""
         type: string
@@ -80,7 +90,11 @@ jobs:
         run: test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
 
       - name: Compile readiness gate and evidence validators
-        run: python3 -m py_compile tools/live_tool_evidence.py tools/check_ai_live_readiness.py
+        run: |
+          python3 -m py_compile \
+            tools/live_tool_evidence.py \
+            tools/live_tool_evidence_acceptance.py \
+            tools/check_ai_live_readiness.py
 
       - name: Evaluate dual-evaluator live-run readiness
         id: readiness
@@ -98,6 +112,8 @@ jobs:
             --runs "${{ inputs.runs }}" \
             --provider-tool-authorization-evidence "${{ inputs.provider_tool_authorization_evidence }}" \
             --provider-model-tool-capability-evidence "${{ inputs.provider_model_tool_capability_evidence }}" \
+            --provider-tool-authorization-acceptance "${{ inputs.provider_tool_authorization_acceptance }}" \
+            --provider-model-tool-capability-acceptance "${{ inputs.provider_model_tool_capability_acceptance }}" \
             --output live-readiness.json
 
       - name: Upload readiness evidence

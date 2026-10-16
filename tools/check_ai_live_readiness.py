@@ -12,6 +12,10 @@ from tools.live_tool_evidence import (
     validate_authorization,
     validate_capability,
 )
+from tools.live_tool_evidence_acceptance import (
+    EvidenceAcceptanceError,
+    validate_record,
+)
 from tools.validate_ai_behavior import OFFLINE_TOOL_PROFILE, validate_scenario
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -53,7 +57,7 @@ def _file_sha(path):
     try:
         return _sha256(path.read_bytes())
     except OSError as exc:
-        raise ReadinessError(f"required adapter unavailable: {path}") from exc
+        raise ReadinessError(f"required file unavailable: {path}") from exc
 
 
 def _provider(name):
@@ -123,6 +127,51 @@ def _capability_evidence(path, *, expected, blockers):
     return summary
 
 
+def _acceptance_record(
+    path,
+    *,
+    evidence_kind,
+    evidence_summary,
+    target_mgtest_commit,
+    blocker_prefix,
+    blockers,
+):
+    if evidence_summary.get("status") != "VALID":
+        return {"status": "NOT_EVALUATED"}
+    if not path:
+        blockers.append(f"{blocker_prefix}_MISSING")
+        return {"status": "MISSING"}
+    record_path = Path(path).resolve()
+    try:
+        raw = record_path.read_bytes()
+        value = json.loads(raw.decode("utf-8"))
+        summary = validate_record(value)
+    except (
+        OSError,
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        EvidenceAcceptanceError,
+    ) as exc:
+        blockers.append(f"{blocker_prefix}_INVALID")
+        return _invalid_summary(str(exc))
+    summary["file_sha256"] = _sha256(raw)
+    if (
+        summary["evidence_kind"] != evidence_kind
+        or summary["evidence_file_sha256"] != evidence_summary["file_sha256"]
+        or summary["evidence_sha256"] != evidence_summary["evidence_sha256"]
+        or summary["target_mgtest_commit"] != target_mgtest_commit
+    ):
+        blockers.append(f"{blocker_prefix}_BINDING_MISMATCH")
+        summary["status"] = "BINDING_MISMATCH"
+        return summary
+    if summary["lifecycle_status"] != "ACCEPTED":
+        blockers.append(f"{blocker_prefix}_NOT_ACCEPTED")
+        return summary
+    if not summary["authenticated_identity_verified"]:
+        blockers.append(f"{blocker_prefix}_IDENTITY_UNVERIFIED")
+    return summary
+
+
 def build_plan(
     scenario_path,
     *,
@@ -138,6 +187,8 @@ def build_plan(
     stable_promotion_enabled=None,
     provider_tool_authorization_evidence=None,
     provider_model_tool_capability_evidence=None,
+    provider_tool_authorization_acceptance=None,
+    provider_model_tool_capability_acceptance=None,
 ):
     if not isinstance(mgtest_commit, str) or not HEX40.fullmatch(mgtest_commit):
         raise ReadinessError("mgtest_commit must be exact lowercase 40-hex SHA")
@@ -225,10 +276,28 @@ def build_plan(
             expected=capability_expected,
             blockers=blockers,
         )
+        authorization_acceptance = _acceptance_record(
+            provider_tool_authorization_acceptance,
+            evidence_kind="authorization",
+            evidence_summary=authorization,
+            target_mgtest_commit=mgtest_commit,
+            blocker_prefix="PROVIDER_TOOL_SUBJECT_AUTHORIZATION_ACCEPTANCE_RECORD",
+            blockers=blockers,
+        )
+        capability_acceptance = _acceptance_record(
+            provider_model_tool_capability_acceptance,
+            evidence_kind="capability",
+            evidence_summary=capability,
+            target_mgtest_commit=mgtest_commit,
+            blocker_prefix="PROVIDER_MODEL_TOOL_CAPABILITY_ACCEPTANCE_RECORD",
+            blockers=blockers,
+        )
         if capability.get("status") == "VALID" and capability.get(
             "immutable_version"
         ) is None:
-            limitations.append("CAPABILITY_EVIDENCE_MODEL_VERSION_MUTABLE_OR_UNAVAILABLE")
+            limitations.append(
+                "CAPABILITY_EVIDENCE_MODEL_VERSION_MUTABLE_OR_UNAVAILABLE"
+            )
         subject_plan.update(
             {
                 "tool_subject_contract": subject["tool_subject_contract"],
@@ -236,12 +305,29 @@ def build_plan(
                     "continuation_context_kind"
                 ],
                 "continuation_chain_contract": CONTINUATION_CHAIN_CONTRACT,
-                "live_tool_subject_authorized": authorization.get("status")
+                "authorization_evidence_valid": authorization.get("status")
                 == "VALID",
+                "capability_evidence_valid": capability.get("status") == "VALID",
+                "live_tool_subject_authorized": (
+                    authorization_acceptance.get("lifecycle_status") == "ACCEPTED"
+                    and authorization_acceptance.get(
+                        "authenticated_identity_verified"
+                    )
+                    is True
+                ),
                 "model_tool_capability_verified": capability.get("status")
                 == "VALID",
+                "model_tool_capability_accepted": (
+                    capability_acceptance.get("lifecycle_status") == "ACCEPTED"
+                    and capability_acceptance.get(
+                        "authenticated_identity_verified"
+                    )
+                    is True
+                ),
                 "authorization_evidence": authorization,
                 "capability_evidence": capability,
+                "authorization_acceptance": authorization_acceptance,
+                "capability_acceptance": capability_acceptance,
             }
         )
 
@@ -260,7 +346,7 @@ def build_plan(
         }
 
     plan = {
-        "schema_version": 4,
+        "schema_version": 5,
         "plan_type": "mgtest.ai.live-readiness",
         "execution_mode": execution_mode,
         "mgtest_commit": mgtest_commit,
@@ -314,6 +400,8 @@ def main(argv=None):
     p.add_argument("--runs", type=int, required=True)
     p.add_argument("--provider-tool-authorization-evidence")
     p.add_argument("--provider-model-tool-capability-evidence")
+    p.add_argument("--provider-tool-authorization-acceptance")
+    p.add_argument("--provider-model-tool-capability-acceptance")
     p.add_argument("--output")
     args = p.parse_args(argv)
     try:
@@ -329,6 +417,8 @@ def main(argv=None):
             runs=args.runs,
             provider_tool_authorization_evidence=args.provider_tool_authorization_evidence,
             provider_model_tool_capability_evidence=args.provider_model_tool_capability_evidence,
+            provider_tool_authorization_acceptance=args.provider_tool_authorization_acceptance,
+            provider_model_tool_capability_acceptance=args.provider_model_tool_capability_acceptance,
         )
     except ReadinessError as exc:
         print(f"BLOCKED: {exc}")

@@ -28,12 +28,14 @@ Current scenario versions: **13** across **11** test IDs.
 | Dual-evaluator fail-closed path | IMPLEMENTED |
 | Independent dual-evidence verifier | IMPLEMENTED |
 | Evidence-only cross-model comparison | IMPLEMENTED |
-| Live-readiness plan v4 | IMPLEMENTED / fail-closed |
+| Live-readiness plan v5 | IMPLEMENTED / fail-closed |
 | No-tool provider readiness | IMPLEMENTED / BLOCKED by current trust root |
-| Receipt-backed provider tool-subject readiness | IMPLEMENTED / BLOCKED by evidence + trust root |
+| Receipt-backed provider tool-subject readiness | IMPLEMENTED / acceptance-auth BLOCKED |
 | Live tool authorization evidence validator | IMPLEMENTED |
 | Provider/model tool capability evidence validator | IMPLEMENTED |
 | Evidence acceptance lifecycle validator | IMPLEMENTED / structural only |
+| Acceptance-record binding in readiness | IMPLEMENTED |
+| Authenticated GitHub acceptance proof | DEFERRED / trust-root dependent |
 | Deterministic offline tool execution profile | IMPLEMENTED |
 | Offline subject tool-call orchestration | IMPLEMENTED |
 | Independent offline tool-session verifier | IMPLEMENTED |
@@ -44,17 +46,12 @@ Current scenario versions: **13** across **11** test IDs.
 | OpenAI/Gemini receipt-backed tool-evaluator support | IMPLEMENTED / mock-tested |
 | OpenAI/Gemini offline-tool subject translation bridge | IMPLEMENTED / mock-tested |
 | Provider-native continuation evidence binding | IMPLEMENTED / mock-tested |
-| Authenticated GitHub review proof for evidence acceptance | DEFERRED / trust-root dependent |
 | Credentialed live provider subject tool execution | DEFERRED / readiness BLOCKED |
 | Real network-enabled effect profile | DEFERRED |
 
-Readiness v4 binds the exact scenario hash, readiness-gate hash and provider/evaluator adapter hashes. For tool-enabled scenarios it also requires two independent, hash-bound artifacts: governance authorization evidence and provider/model capability evidence.
+Readiness v5 binds the exact scenario hash, readiness-gate hash and provider/evaluator adapter hashes. Tool-enabled scenarios additionally require exact-bound authorization evidence, capability evidence, and an acceptance record for each evidence artifact.
 
-The authorization evidence must match the exact MGnarfTest commit, provider/model, adapter SHA and frozen tool/continuation contracts. The capability evidence must separately match those bindings plus the provider-native continuation context kind and verifier identity/method.
-
-`READY` can no longer be obtained by passing boolean authorization/capability flags to the readiness library. Missing, tampered or mismatched evidence leaves the plan `BLOCKED`.
-
-The evidence acceptance lifecycle adds a separate frozen record for `PROPOSED -> REVIEW-A -> REVIEW-B -> ACCEPTED`. It enforces author/reviewer separation, exact evidence/commit review binding, external-reviewer membership, accepted revision and trust-root receipt requirements. The standalone validator deliberately reports only `STRUCTURALLY_VALID`; it does not authenticate GitHub identities.
+A missing or non-`ACCEPTED` acceptance record blocks readiness. A structurally valid `ACCEPTED` record also remains blocked until reviewer identity is authenticated by a protected trust-root component. This means self-authored reviewer names cannot unlock live tool execution.
 
 The provider subject bridge binds exact provider-native continuation context into the offline tool transcript and session receipt. OpenAI output/reasoning items and Gemini returned model Parts are preserved rather than reconstructed before receipt-backed tool results are returned.
 

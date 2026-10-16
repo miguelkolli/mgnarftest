@@ -13,38 +13,39 @@ These items are intentionally **not blockers** for continued private-repository 
 
 The readiness gate understands both normal no-tool subjects and the receipt-backed deterministic offline-tool subject mode. This does **not** authorize live tool execution.
 
-Tool-enabled readiness requires two separate hash-bound evidence artifacts:
+Tool-enabled readiness v5 requires:
 
 - governance authorization evidence for the exact MGnarfTest commit/provider/model/adapter/tool contract;
-- provider/model capability evidence for the exact adapter + continuation contract, with verifier identity and verification method.
+- provider/model capability evidence for the exact adapter + continuation contract;
+- an `ACCEPTED` lifecycle record bound to the exact authorization evidence;
+- an `ACCEPTED` lifecycle record bound to the exact capability evidence;
+- authenticated acceptance identity proof from the protected trust root.
+
+The first four contracts are implemented. The last item remains deliberately unavailable in the current private/unprotected phase, so tool-enabled live readiness stays `BLOCKED` even if someone manufactures structurally valid ACCEPTED JSON records.
 
 Before credentialed provider-tool execution can become `READY`:
 
 - repository trust root must be `PROTECTED`/`ENFORCED` and governed promotion enabled;
-- both evidence artifacts must validate against the exact readiness target;
-- accepted evidence must be bound to the protected review/promotion process;
-- exact MGnarfTest commit, scenario hash, readiness-gate hash and provider/evaluator adapter hashes must remain bound;
+- authenticated GitHub review state must prove the acceptance records' reviewer identities/review IDs;
+- exact MGnarfTest commit, evidence hashes, scenario hash, readiness-gate hash and provider/evaluator adapter hashes must remain bound;
+- stale reviews must become invalid after evidence/acceptance revision;
 - required provider secret **names** may be planned, but secret values must not enter readiness evidence;
 - immutable provider model snapshot/version/build identifiers must be captured when exposed; otherwise record the limitation;
 - real repeated model executions must be independently verified before any live AI behavior claim;
 - credentialed multi-subject orchestration is still required for real cross-model runs.
 
-Under the current private/unprotected trust root, live readiness therefore remains intentionally `BLOCKED`.
-
 ## Evidence acceptance authentication
 
-The repository now has a structural acceptance-record contract with lifecycle states `PROPOSED`, `REVIEW-A`, `REVIEW-B`, `ACCEPTED`, `NEEDS-REVISION`, and `REJECTED`.
-
-The structural validator enforces author/reviewer separation, two distinct reviewers, exact evidence/commit review binding, an external approver for `ACCEPTED`, accepted revision, trust-root receipt and record hashing.
+The structural acceptance validator enforces author/reviewer separation, two distinct reviewers, exact evidence/commit review binding, an external approver for `ACCEPTED`, accepted revision, trust-root receipt and record hashing.
 
 Still deferred until the trust root is protected:
 
 - verify reviewer identities and review IDs against authenticated GitHub review state;
-- generate the trust-root receipt from a protected promotion workflow;
+- generate/verify the trust-root receipt from a protected promotion workflow;
 - prove the external reviewer is outside the author's control rather than trusting a self-declared relation;
 - reject stale approvals automatically after any evidence/record revision.
 
-Therefore `STRUCTURALLY_VALID` is not authenticated acceptance.
+Therefore `STRUCTURALLY_VALID` is not authenticated acceptance, and readiness v5 treats it accordingly.
 
 ## Provider continuation status
 

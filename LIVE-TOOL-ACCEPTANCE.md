@@ -16,35 +16,38 @@ REVIEW-B
 ACCEPTED
 ```
 
-`NEEDS-REVISION` and `REJECTED` are terminal/non-promoted states for a revision.
-
-A material change to the evidence artifact changes its hash and therefore invalidates old review bindings.
+`NEEDS-REVISION` and `REJECTED` are non-promoted states for a revision. A material evidence change changes its hash and invalidates old review bindings.
 
 ## Review separation
 
-For `REVIEW-A`, `REVIEW-B`, and `ACCEPTED`:
+For reviewed states:
 
 - the author cannot be a reviewer;
 - Reviewer A and Reviewer B must be different identities;
 - each review binds the exact evidence SHA-256 and exact MGnarfTest commit;
 - each review decision must be `APPROVED`.
 
-`ACCEPTED` additionally requires:
+`ACCEPTED` additionally requires both reviewers, an external reviewer identity among them, a positive accepted revision and a trust-root receipt SHA-256.
 
-- both reviewers;
-- an external reviewer identity that is one of the two approvers;
-- a positive accepted revision;
-- a trust-root receipt SHA-256.
+## Readiness v5 integration
 
-## Important identity boundary
+Tool-enabled live readiness consumes two acceptance records:
 
-The standalone validator returns `STRUCTURALLY_VALID`. It **does not** claim that reviewer identities or review IDs were authenticated against GitHub.
+- authorization-evidence acceptance record;
+- capability-evidence acceptance record.
 
-That distinction is deliberate. A JSON file can describe reviewer identities, but it cannot prove that those people/accounts actually approved it.
+Each record must bind the exact raw evidence-file SHA-256, canonical evidence SHA-256 and target MGnarfTest commit. Missing records, non-`ACCEPTED` lifecycle states or binding mismatches fail closed.
 
-When the repository trust root is later protected, a trusted promotion workflow must bind the acceptance record to real authenticated GitHub review state and produce the trust-root receipt required for `ACCEPTED`.
+A structurally valid `ACCEPTED` record is still **not sufficient for live READY** today. The standalone validator intentionally returns:
 
-Until then, MGnarfTest must not claim that a structurally valid `ACCEPTED` record is independently authenticated acceptance.
+```text
+STRUCTURALLY_VALID
+authenticated_identity_verified = false
+```
+
+Therefore readiness v5 adds `...ACCEPTANCE_RECORD_IDENTITY_UNVERIFIED` blockers until a protected trust-root component verifies the referenced GitHub identities/reviews.
+
+This prevents a self-authored JSON file from becoming live authority merely because it contains two reviewer names and a recomputed hash.
 
 ## Frozen record binding
 
@@ -61,8 +64,8 @@ The record binds:
 - trust-root receipt hash
 - canonical acceptance-record SHA-256
 
-Changing any field without recomputing the record hash is rejected. Recomputing the hash does not bypass semantic review-separation rules.
+Changing any field without recomputing the record hash is rejected. Recomputing the hash does not bypass semantic review-separation or readiness binding rules.
 
 ## Current repository status
 
-No live-tool evidence artifact is being promoted to authenticated `ACCEPTED` in the current private/unprotected repository state. The contract and adversarial validator exist so that the later public/protected workflow has a frozen acceptance format to enforce.
+No live-tool evidence artifact is authenticated as accepted in the current private/unprotected repository state. The contract and readiness integration exist so that the later public/protected workflow has a frozen acceptance format and fail-closed boundary to enforce.
