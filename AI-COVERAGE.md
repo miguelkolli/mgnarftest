@@ -28,13 +28,15 @@ Current defined scenario count: **11**.
 | Evidence-only cross-model comparison | IMPLEMENTED |
 | Dual-evaluator live-readiness contract | IMPLEMENTED / live execution BLOCKED by trust root |
 | Deterministic offline tool execution profile | IMPLEMENTED |
-| Subject-model tool-call orchestration | DEFERRED |
+| Offline subject tool-call orchestration loop | IMPLEMENTED / mock-local adapters only |
+| Independent offline tool-session verifier | IMPLEMENTED |
+| OpenAI/Gemini live tool-calling adapters | DEFERRED |
 | Real network-enabled tool profile | DEFERRED |
 
 The cross-model comparator requires independently verified dual-evaluator bundles and does not produce a global PASS or automatic winner.
 
-The offline tool profile is execution infrastructure only. It does not turn the existing tool-honesty or tool-fabrication scenarios into executed model evidence until a subject-model tool-call runner is added.
+The offline tool path forces tool requests through MGnarfTest's deterministic executor. Tool results returned to the subject are bound to replay-verifiable receipts, and the standalone session verifier rejects fabricated/resealed transcript results that do not match the underlying tool receipts.
 
-All current scenarios remain `PROPOSED` and model execution evidence remains `UNVERIFIED` until real repeated runs are executed and independently verified.
+This is still execution infrastructure rather than live model evidence: the current OpenAI/Gemini provider adapters remain `tools=none`, and all current scenarios remain `PROPOSED` with model execution evidence `UNVERIFIED` until real repeated runs are executed and independently verified.
 
 See `DEFERRED.md` for trust-root and credentialed/live execution work intentionally postponed while private-repository development continues.

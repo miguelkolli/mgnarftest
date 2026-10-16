@@ -25,7 +25,7 @@ jobs:
       - name: Validate AI scenarios
         run: python3 tools/validate_ai_behavior.py
 
-      - name: Compile AI runners, evidence verifiers, comparison, tool profile, consensus, readiness and provider layers
+      - name: Compile AI runners, evidence verifiers, comparison, tool layers, consensus, readiness and provider layers
         run: |
           python3 -m py_compile \
             tools/ai_runner_protocol.py \
@@ -37,6 +37,8 @@ jobs:
             tools/verify_ai_dual_evidence.py \
             tools/compare_ai_dual_bundles.py \
             tools/offline_tool_profile.py \
+            tools/offline_tool_agent.py \
+            tools/verify_offline_tool_session.py \
             tools/evaluator_consensus.py \
             tools/check_ai_live_readiness.py \
             tools/test_run_ai_behavior.py \
@@ -45,6 +47,7 @@ jobs:
             tools/test_verify_ai_dual_evidence.py \
             tools/test_compare_ai_dual_bundles.py \
             tools/test_offline_tool_profile.py \
+            tools/test_offline_tool_agent.py \
             tools/test_evaluator_consensus.py \
             tools/test_ai_live_readiness.py \
             tools/test_provider_adapters.py \
@@ -52,7 +55,7 @@ jobs:
             adapters/openai_adapter.py \
             adapters/gemini_adapter.py
 
-      - name: Run AI runners, evidence, comparison, tool profile, consensus and readiness unit tests
+      - name: Run AI runners, evidence, comparison, tool layers, consensus and readiness unit tests
         run: |
           python3 -m unittest -v \
             tools.test_run_ai_behavior \
@@ -61,6 +64,7 @@ jobs:
             tools.test_verify_ai_dual_evidence \
             tools.test_compare_ai_dual_bundles \
             tools.test_offline_tool_profile \
+            tools.test_offline_tool_agent \
             tools.test_evaluator_consensus \
             tools.test_ai_live_readiness \
             tools.test_provider_adapters

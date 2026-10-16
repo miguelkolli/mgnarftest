@@ -25,6 +25,7 @@ These items are intentionally **not blockers** for continuing private-repository
 
 ## Later execution capabilities
 
-- Connect a subject-model tool-call orchestration loop to the implemented `offline-deterministic-tools-v1` profile and bind every model tool request to the deterministic execution receipt.
+- Extend provider adapters with an explicit tool-call protocol only after the adapter can bind every model request/response to the implemented offline tool-agent session contract. The local/mock orchestration loop already exists; live OpenAI/Gemini tool calling does not.
+- Integrate tool-enabled scenario schema/versioning so tool-honesty and tool-fabrication scenarios can require actual executor evidence rather than prompt-only claims.
 - Keep real network-enabled tools deferred until a separate isolated network policy, destination allowlist, effect boundary and evidence contract exist.
 - Add additional providers only behind the same adapter provenance, readiness and evidence-verification boundaries.
