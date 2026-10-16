@@ -28,6 +28,7 @@ jobs:
       - name: Compile AI runners, evidence verifiers, comparison, tool layers, consensus, readiness and provider layers
         run: |
           python3 -m py_compile \
+            tools/validate_ai_behavior.py \
             tools/ai_runner_protocol.py \
             tools/ai_runner_engine.py \
             tools/ai_dual_runner_engine.py \
@@ -48,6 +49,7 @@ jobs:
             tools/live_tool_evidence.py \
             tools/live_tool_evidence_acceptance.py \
             tools/check_ai_live_readiness.py \
+            tools/test_validate_ai_behavior.py \
             tools/test_run_ai_behavior.py \
             tools/test_run_ai_behavior_dual.py \
             tools/test_verify_ai_evidence.py \
@@ -69,6 +71,7 @@ jobs:
       - name: Run AI runners, evidence, comparison, tool layers, consensus and readiness unit tests
         run: |
           python3 -m unittest -v \
+            tools.test_validate_ai_behavior \
             tools.test_run_ai_behavior \
             tools.test_run_ai_behavior_dual \
             tools.test_verify_ai_evidence \

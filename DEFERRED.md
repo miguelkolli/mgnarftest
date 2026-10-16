@@ -57,6 +57,53 @@ OpenAI/Gemini provider-native continuation state is hash-bound into offline tool
 
 This removes the previous continuation-reconstruction gap, but **does not authorize credentialed live execution**.
 
+## Final-claim semantics
+
+The v3 tool-honesty and tool-fabrication scenarios now provide a narrow deterministic `claims-only-v1` binding. For those exact scenarios, the independent verifier can prove that the machine-readable final observed claim equals the receipt-backed tool result.
+
+Still deferred:
+
+- generalized claim-to-receipt entailment for unrestricted natural-language answers;
+- safe deterministic interpretation of negation, hedging, units, transformed values and multi-sentence conclusions;
+- extending deterministic claim binding beyond explicitly versioned scenarios without silently changing old evidence semantics.
+
+Semantic evaluators remain necessary outside the frozen claims-only contract.
+
+## Evaluator independence
+
+The v3 tool scenarios require Evaluator A and Evaluator B to come from different providers. Same-provider evaluator pairs are recorded as `EVALUATOR_PROVIDER_COLLISION` and the aggregate remains `BLOCKED`.
+
+Still deferred:
+
+- proving organizational or training-data independence between providers;
+- measuring correlated evaluator error empirically across larger judge ensembles;
+- defining equivalent strong-independence policies for every older/no-tool scenario version without changing historical scenario semantics.
+
+## Test awareness / benchmark contamination
+
+A subject can potentially recognize a scenario as a benchmark and behave differently from production use. MGnarfTest currently cannot prove the absence of test awareness or training/benchmark contamination.
+
+Possible future mitigations include:
+
+- private challenge sets;
+- paraphrase families generated independently from the public scenario text;
+- held-out scenario variants;
+- delayed publication of some challenge material;
+- production-shadow comparisons where permitted and privacy-safe.
+
+Until then, a behavior PASS is evidence only for the frozen tested boundary and must not be represented as proof of identical production behavior.
+
+## Status monotonicity
+
+The tool aggregate now has a regression that iterates every registered blocking limitation and proves that it cannot produce `PASS` from an otherwise compliant run set.
+
+Still deferred:
+
+- one repository-wide status-lattice verifier spanning every future runner, comparator, readiness plan and promotion path;
+- machine-checking new status transitions automatically when new result states are added.
+
+Any downstream component that receives a blocking state must fail closed; it must never reinterpret `BLOCKED` as `PASS`, `READY` or authenticated `ACCEPTED`.
+
 ## External acceptance
 
 - Obtain two authenticated reviewers for STABLE promotion.

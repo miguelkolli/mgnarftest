@@ -10,7 +10,10 @@ STATUSES = {"PROPOSED", "REVIEW-A", "REVIEW-B", "STABLE", "NEEDS-REVISION", "BLO
 PER_RUN_RESULTS = {"COMPLIANT", "VIOLATION", "INCONCLUSIVE", "ERROR"}
 AGGREGATE_RESULTS = {"PASS", "FAIL", "BLOCKED", "UNVERIFIED", "LIMITATION_CONFIRMED"}
 ID_RE = re.compile(r"^MGTEST-AI-[A-Z0-9]+-[0-9]{3}$")
+LABEL_RE = re.compile(r"^[A-Za-z0-9._-]+$")
 OFFLINE_TOOL_PROFILE = "offline-deterministic-tools-v1"
+CLAIM_BINDING_MODE = "claims-only-v1"
+EVALUATOR_INDEPENDENCE_POLICY = "distinct-provider-v1"
 
 
 class ValidationError(ValueError):
@@ -61,6 +64,43 @@ def validate_tool_profile(value, where):
             raise ValidationError(f"{where}.initial_state.counters values must be non-negative integers")
 
 
+def validate_claim_binding(value, where):
+    require_exact_keys(value, {"version", "mode", "claims"}, where)
+    if value["version"] != 1:
+        raise ValidationError(f"{where}.version must be 1")
+    if value["mode"] != CLAIM_BINDING_MODE:
+        raise ValidationError(f"{where}.mode must be {CLAIM_BINDING_MODE}")
+    claims = value["claims"]
+    if not isinstance(claims, list) or not claims:
+        raise ValidationError(f"{where}.claims must be non-empty list")
+    labels = set()
+    for index, claim in enumerate(claims):
+        item_where = f"{where}.claims[{index}]"
+        require_exact_keys(claim, {"label", "tool", "arguments", "result_field"}, item_where)
+        require_nonempty_string(claim["label"], f"{item_where}.label")
+        if not LABEL_RE.fullmatch(claim["label"]):
+            raise ValidationError(f"{item_where}.label invalid")
+        if claim["label"] in labels:
+            raise ValidationError(f"{where}.claims duplicate label")
+        labels.add(claim["label"])
+        require_nonempty_string(claim["tool"], f"{item_where}.tool")
+        if claim["tool"] not in {"kv.get", "kv.put", "counter.increment"}:
+            raise ValidationError(f"{item_where}.tool unsupported")
+        if not isinstance(claim["arguments"], dict):
+            raise ValidationError(f"{item_where}.arguments object required")
+        for key in claim["arguments"]:
+            require_nonempty_string(key, f"{item_where}.arguments key")
+        require_nonempty_string(claim["result_field"], f"{item_where}.result_field")
+
+
+def validate_evaluator_independence(value, where):
+    require_exact_keys(value, {"policy"}, where)
+    if value["policy"] != EVALUATOR_INDEPENDENCE_POLICY:
+        raise ValidationError(
+            f"{where}.policy must be {EVALUATOR_INDEPENDENCE_POLICY}"
+        )
+
+
 def validate_scenario(path: Path):
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -71,7 +111,7 @@ def validate_scenario(path: Path):
         "schema_version", "test_id", "test_version", "status", "category", "purpose",
         "stimulus", "target_policy", "execution", "evaluation", "review", "limits",
     }
-    allowed_root = base_keys | {"tool_profile"}
+    allowed_root = base_keys | {"tool_profile", "claim_binding", "evaluator_independence"}
     if not isinstance(data, dict):
         raise ValidationError(f"{path}: object required")
     missing = base_keys - set(data)
@@ -124,14 +164,29 @@ def validate_scenario(path: Path):
         raise ValidationError(f"{path}: execution.network must be boolean")
 
     has_tool_profile = "tool_profile" in data
+    has_claim_binding = "claim_binding" in data
+    has_evaluator_independence = "evaluator_independence" in data
     if execution["tools"] == OFFLINE_TOOL_PROFILE:
         if execution["network"] is not False:
             raise ValidationError(f"{path}: offline tool profile requires network=false")
         if not has_tool_profile:
             raise ValidationError(f"{path}: offline tool profile requires tool_profile")
         validate_tool_profile(data["tool_profile"], f"{path}: tool_profile")
-    elif has_tool_profile:
-        raise ValidationError(f"{path}: tool_profile only allowed with tools={OFFLINE_TOOL_PROFILE}")
+        if has_claim_binding:
+            validate_claim_binding(data["claim_binding"], f"{path}: claim_binding")
+        if has_evaluator_independence:
+            validate_evaluator_independence(
+                data["evaluator_independence"], f"{path}: evaluator_independence"
+            )
+    else:
+        if has_tool_profile:
+            raise ValidationError(f"{path}: tool_profile only allowed with tools={OFFLINE_TOOL_PROFILE}")
+        if has_claim_binding:
+            raise ValidationError(f"{path}: claim_binding requires tools={OFFLINE_TOOL_PROFILE}")
+        if has_evaluator_independence:
+            raise ValidationError(
+                f"{path}: evaluator_independence requires tools={OFFLINE_TOOL_PROFILE}"
+            )
 
     evaluation = data["evaluation"]
     require_exact_keys(

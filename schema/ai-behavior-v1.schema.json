@@ -4,87 +4,339 @@
   "title": "MGnarfTest AI behavior scenario v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "test_id", "test_version", "status", "category", "purpose", "stimulus", "target_policy", "execution", "evaluation", "review", "limits"],
+  "required": [
+    "schema_version",
+    "test_id",
+    "test_version",
+    "status",
+    "category",
+    "purpose",
+    "stimulus",
+    "target_policy",
+    "execution",
+    "evaluation",
+    "review",
+    "limits"
+  ],
   "properties": {
-    "schema_version": {"const": 1},
-    "test_id": {"type": "string", "pattern": "^MGTEST-AI-[A-Z0-9]+-[0-9]{3}$"},
-    "test_version": {"type": "integer", "minimum": 1},
-    "status": {"enum": ["PROPOSED", "REVIEW-A", "REVIEW-B", "STABLE", "NEEDS-REVISION", "BLOCKED", "REJECTED", "RETIRED"]},
-    "category": {"type": "string", "minLength": 1},
-    "purpose": {"type": "string", "minLength": 1},
+    "schema_version": {
+      "const": 1
+    },
+    "test_id": {
+      "type": "string",
+      "pattern": "^MGTEST-AI-[A-Z0-9]+-[0-9]{3}$"
+    },
+    "test_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "status": {
+      "enum": [
+        "PROPOSED",
+        "REVIEW-A",
+        "REVIEW-B",
+        "STABLE",
+        "NEEDS-REVISION",
+        "BLOCKED",
+        "REJECTED",
+        "RETIRED"
+      ]
+    },
+    "category": {
+      "type": "string",
+      "minLength": 1
+    },
+    "purpose": {
+      "type": "string",
+      "minLength": 1
+    },
     "stimulus": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["system_context", "user_message"],
+      "required": [
+        "system_context",
+        "user_message"
+      ],
       "properties": {
-        "system_context": {"type": "string", "minLength": 1},
-        "user_message": {"type": "string", "minLength": 1}
+        "system_context": {
+          "type": "string",
+          "minLength": 1
+        },
+        "user_message": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "target_policy": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["provider", "model", "immutable_version_required_for_strong_comparison"],
+      "required": [
+        "provider",
+        "model",
+        "immutable_version_required_for_strong_comparison"
+      ],
       "properties": {
-        "provider": {"type": "string", "minLength": 1},
-        "model": {"type": "string", "minLength": 1},
-        "immutable_version_required_for_strong_comparison": {"type": "boolean"}
+        "provider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "immutable_version_required_for_strong_comparison": {
+          "type": "boolean"
+        }
       }
     },
     "execution": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["minimum_runs", "temperature_policy", "tools", "network"],
+      "required": [
+        "minimum_runs",
+        "temperature_policy",
+        "tools",
+        "network"
+      ],
       "properties": {
-        "minimum_runs": {"type": "integer", "minimum": 1},
-        "temperature_policy": {"type": "string", "minLength": 1},
-        "tools": {"type": "string", "minLength": 1},
-        "network": {"type": "boolean"}
+        "minimum_runs": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "temperature_policy": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tools": {
+          "type": "string",
+          "minLength": 1
+        },
+        "network": {
+          "type": "boolean"
+        }
       }
     },
     "tool_profile": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["profile", "max_steps", "initial_state"],
+      "required": [
+        "profile",
+        "max_steps",
+        "initial_state"
+      ],
       "properties": {
-        "profile": {"const": "offline-deterministic-tools-v1"},
-        "max_steps": {"type": "integer", "minimum": 1, "maximum": 16},
+        "profile": {
+          "const": "offline-deterministic-tools-v1"
+        },
+        "max_steps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16
+        },
         "initial_state": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["kv", "counters"],
+          "required": [
+            "kv",
+            "counters"
+          ],
           "properties": {
-            "kv": {"type": "object", "additionalProperties": {"type": "string"}},
-            "counters": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}}
+            "kv": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "counters": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
           }
+        }
+      }
+    },
+    "claim_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "mode",
+        "claims"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "mode": {
+          "const": "claims-only-v1"
+        },
+        "claims": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "label",
+              "tool",
+              "arguments",
+              "result_field"
+            ],
+            "properties": {
+              "label": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9._-]+$"
+              },
+              "tool": {
+                "enum": [
+                  "kv.get",
+                  "kv.put",
+                  "counter.increment"
+                ]
+              },
+              "arguments": {
+                "type": "object"
+              },
+              "result_field": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "evaluator_independence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy"
+      ],
+      "properties": {
+        "policy": {
+          "const": "distinct-provider-v1"
         }
       }
     },
     "evaluation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["critical_invariants", "acceptable_behavior", "violation_examples", "per_run_results", "aggregate_allowed_results", "critical_violation_tolerance"],
+      "required": [
+        "critical_invariants",
+        "acceptable_behavior",
+        "violation_examples",
+        "per_run_results",
+        "aggregate_allowed_results",
+        "critical_violation_tolerance"
+      ],
       "properties": {
-        "critical_invariants": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
-        "acceptable_behavior": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
-        "violation_examples": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
-        "per_run_results": {"type": "array", "items": {"enum": ["COMPLIANT", "VIOLATION", "INCONCLUSIVE", "ERROR"]}, "minItems": 4, "maxItems": 4, "uniqueItems": true},
-        "aggregate_allowed_results": {"type": "array", "items": {"enum": ["PASS", "FAIL", "BLOCKED", "UNVERIFIED", "LIMITATION_CONFIRMED"]}, "minItems": 1, "uniqueItems": true},
-        "critical_violation_tolerance": {"type": "integer", "minimum": 0}
+        "critical_invariants": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "acceptable_behavior": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "violation_examples": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "per_run_results": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "COMPLIANT",
+              "VIOLATION",
+              "INCONCLUSIVE",
+              "ERROR"
+            ]
+          },
+          "minItems": 4,
+          "maxItems": 4,
+          "uniqueItems": true
+        },
+        "aggregate_allowed_results": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "PASS",
+              "FAIL",
+              "BLOCKED",
+              "UNVERIFIED",
+              "LIMITATION_CONFIRMED"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "critical_violation_tolerance": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     },
     "review": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["author", "reviewer_a", "reviewer_b", "external_reviewer_required", "external_reviewer"],
+      "required": [
+        "author",
+        "reviewer_a",
+        "reviewer_b",
+        "external_reviewer_required",
+        "external_reviewer"
+      ],
       "properties": {
-        "author": {"type": "string", "minLength": 1},
-        "reviewer_a": {"type": ["string", "null"]},
-        "reviewer_b": {"type": ["string", "null"]},
-        "external_reviewer_required": {"const": true},
-        "external_reviewer": {"type": ["string", "null"]}
+        "author": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reviewer_a": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reviewer_b": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "external_reviewer_required": {
+          "const": true
+        },
+        "external_reviewer": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
       }
     },
-    "limits": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+    "limits": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
   }
 }

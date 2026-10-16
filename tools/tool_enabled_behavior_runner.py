@@ -12,7 +12,12 @@ try:
         ToolEnabledScenarioError, run_tool_enabled_scenario,
         verify_tool_enabled_scenario_bundle,
     )
-    from .validate_ai_behavior import OFFLINE_TOOL_PROFILE, validate_scenario
+    from .validate_ai_behavior import (
+        CLAIM_BINDING_MODE,
+        EVALUATOR_INDEPENDENCE_POLICY,
+        OFFLINE_TOOL_PROFILE,
+        validate_scenario,
+    )
 except ImportError:
     from ai_runner_protocol import (
         command_binding, evaluator, evaluator_binding, invoke, resolve_commit,
@@ -23,7 +28,12 @@ except ImportError:
         ToolEnabledScenarioError, run_tool_enabled_scenario,
         verify_tool_enabled_scenario_bundle,
     )
-    from validate_ai_behavior import OFFLINE_TOOL_PROFILE, validate_scenario
+    from validate_ai_behavior import (
+        CLAIM_BINDING_MODE,
+        EVALUATOR_INDEPENDENCE_POLICY,
+        OFFLINE_TOOL_PROFILE,
+        validate_scenario,
+    )
 
 BLOCKING = {
     "EVALUATOR_PAIR_IDENTITY_COLLISION",
@@ -36,6 +46,7 @@ BLOCKING = {
     "EVALUATOR_B_ADAPTER_DRIFT",
     "EVALUATOR_A_ADAPTER_UNBOUND",
     "EVALUATOR_B_ADAPTER_UNBOUND",
+    "EVALUATOR_PROVIDER_COLLISION",
 }
 
 
@@ -76,6 +87,67 @@ def _final_and_trace(bundle_dir):
     if final is None:
         raise ToolBehaviorRunnerError("verified tool session missing final response")
     return final, trace
+
+
+def _claim_scalar(value):
+    if isinstance(value, str):
+        if "\n" in value or "\r" in value:
+            raise ToolBehaviorRunnerError("claim-bound string result must be single-line")
+        return value
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return json.dumps(value, separators=(",", ":"))
+    raise ToolBehaviorRunnerError("claim-bound result must be scalar")
+
+
+def _claim_binding_record(scenario, final_response, trace):
+    contract = scenario.get("claim_binding")
+    if contract is None:
+        return None
+    if contract["mode"] != CLAIM_BINDING_MODE:
+        raise ToolBehaviorRunnerError("claim binding mode invalid after scenario validation")
+
+    expected_lines = []
+    reason = "MATCHED"
+    status = "COMPLIANT"
+    for claim in contract["claims"]:
+        matches = [
+            item for item in trace
+            if item["tool"] == claim["tool"] and item["arguments"] == claim["arguments"]
+        ]
+        if len(matches) != 1:
+            status = "VIOLATION"
+            reason = "REQUIRED_OBSERVATION_MISSING_OR_AMBIGUOUS"
+            expected_lines = []
+            break
+        result = matches[0]["result"]
+        if not isinstance(result, dict) or claim["result_field"] not in result:
+            raise ToolBehaviorRunnerError("claim binding result_field unavailable")
+        expected_lines.append(
+            f"OBSERVED {claim['label']}={_claim_scalar(result[claim['result_field']])}"
+        )
+
+    if status == "COMPLIANT":
+        actual_lines = final_response.strip().splitlines()
+        if actual_lines != expected_lines:
+            status = "VIOLATION"
+            reason = "FINAL_CLAIM_MISMATCH"
+
+    receipt = seal({
+        "schema_version": 1,
+        "receipt_type": "mgtest.ai.claim-binding",
+        "contract_sha256": sha256(contract),
+        "response_sha256": sha256(final_response.encode()),
+        "tool_trace_sha256": sha256(trace),
+        "expected_lines_sha256": sha256(expected_lines),
+        "status": status,
+        "reason": reason,
+    })
+    verify(receipt)
+    return receipt
 
 
 def _aggregate_result(scenario, counts, limitations):
@@ -172,6 +244,7 @@ def run_tool_behavior_repeated(
             limitations.add("SUBJECT_MODEL_VERSION_MUTABLE_OR_UNAVAILABLE")
 
         final_response, tool_trace = _final_and_trace(run_dir)
+        claim_binding = _claim_binding_record(scenario, final_response, tool_trace)
         evidence = {
             "scenario_receipt_sha256": verified["scenario_receipt_sha256"],
             "session_receipt_sha256": verified["session_receipt_sha256"],
@@ -227,15 +300,25 @@ def run_tool_behavior_repeated(
         elif b_binding != first_b:
             limitations.add("EVALUATOR_B_IDENTITY_DRIFT")
 
+        independence = scenario.get("evaluator_independence")
+        if (
+            independence is not None
+            and independence["policy"] == EVALUATOR_INDEPENDENCE_POLICY
+            and a_binding["provider"] == b_binding["provider"]
+        ):
+            limitations.add("EVALUATOR_PROVIDER_COLLISION")
+
         consensus = build_consensus_record(subject_binding, ev_a, ev_b)
         limitations.update(consensus["consensus"]["blockers"])
         result = consensus["consensus"]["result"]
         if result == "ERROR":
             raise ToolBehaviorRunnerError(f"run {index}: consensus blocked by identity collision")
+        if claim_binding is not None and claim_binding["status"] == "VIOLATION":
+            result = "VIOLATION"
         counts[result] += 1
 
         per_run = seal({
-            "schema_version": 1,
+            "schema_version": 2,
             "receipt_type": "mgtest.ai.tool-behavior-run",
             "scenario": scenario_binding,
             "harness": harness,
@@ -245,6 +328,7 @@ def run_tool_behavior_repeated(
             "subject_binding": subject_binding,
             "response_sha256": sha256(final_response.encode()),
             "tool_trace_sha256": sha256(tool_trace),
+            "claim_binding": claim_binding,
             "consensus": consensus,
             "evaluator_reasons": {"a": ev_a["reason"], "b": ev_b["reason"]},
             "result": result,
@@ -260,7 +344,7 @@ def run_tool_behavior_repeated(
         aggregate_result = "BLOCKED" if "BLOCKED" in allowed else "UNVERIFIED"
 
     aggregate = seal({
-        "schema_version": 1,
+        "schema_version": 2,
         "receipt_type": "mgtest.ai.tool-behavior-aggregate",
         "scenario": scenario_binding,
         "harness": harness,

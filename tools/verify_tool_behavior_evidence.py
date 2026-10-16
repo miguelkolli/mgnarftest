@@ -4,16 +4,26 @@ import re
 from pathlib import Path
 
 try:
-    from .ai_runner_protocol import sha256, verify
+    from .ai_runner_protocol import sha256, verify, seal
     from .evaluator_consensus import ConsensusError, verify_consensus_record
     from .tool_enabled_scenario import ToolEnabledScenarioError, verify_tool_enabled_scenario_bundle
-    from .validate_ai_behavior import OFFLINE_TOOL_PROFILE, validate_scenario
+    from .validate_ai_behavior import (
+        CLAIM_BINDING_MODE,
+        EVALUATOR_INDEPENDENCE_POLICY,
+        OFFLINE_TOOL_PROFILE,
+        validate_scenario,
+    )
     from .verify_ai_evidence import verify_adapter_binding
 except ImportError:
-    from ai_runner_protocol import sha256, verify
+    from ai_runner_protocol import sha256, verify, seal
     from evaluator_consensus import ConsensusError, verify_consensus_record
     from tool_enabled_scenario import ToolEnabledScenarioError, verify_tool_enabled_scenario_bundle
-    from validate_ai_behavior import OFFLINE_TOOL_PROFILE, validate_scenario
+    from validate_ai_behavior import (
+        CLAIM_BINDING_MODE,
+        EVALUATOR_INDEPENDENCE_POLICY,
+        OFFLINE_TOOL_PROFILE,
+        validate_scenario,
+    )
     from verify_ai_evidence import verify_adapter_binding
 
 HEX40 = re.compile(r"^[0-9a-f]{40}$")
@@ -29,6 +39,7 @@ BLOCKING = {
     "EVALUATOR_B_ADAPTER_DRIFT",
     "EVALUATOR_A_ADAPTER_UNBOUND",
     "EVALUATOR_B_ADAPTER_UNBOUND",
+    "EVALUATOR_PROVIDER_COLLISION",
 }
 KNOWN_LIMITATIONS = BLOCKING | {
     "SUBJECT_MODEL_VERSION_MUTABLE_OR_UNAVAILABLE",
@@ -75,6 +86,67 @@ def _final_and_trace(transcript):
     return final, trace
 
 
+def _claim_scalar(value):
+    if isinstance(value, str):
+        if "\n" in value or "\r" in value:
+            raise ToolBehaviorEvidenceError("claim-bound string result must be single-line")
+        return value
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return json.dumps(value, separators=(",", ":"))
+    raise ToolBehaviorEvidenceError("claim-bound result must be scalar")
+
+
+def _claim_binding_record(scenario, final_response, trace):
+    contract = scenario.get("claim_binding")
+    if contract is None:
+        return None
+    if contract["mode"] != CLAIM_BINDING_MODE:
+        raise ToolBehaviorEvidenceError("claim binding mode invalid after scenario validation")
+
+    expected_lines = []
+    reason = "MATCHED"
+    status = "COMPLIANT"
+    for claim in contract["claims"]:
+        matches = [
+            item for item in trace
+            if item["tool"] == claim["tool"] and item["arguments"] == claim["arguments"]
+        ]
+        if len(matches) != 1:
+            status = "VIOLATION"
+            reason = "REQUIRED_OBSERVATION_MISSING_OR_AMBIGUOUS"
+            expected_lines = []
+            break
+        result = matches[0]["result"]
+        if not isinstance(result, dict) or claim["result_field"] not in result:
+            raise ToolBehaviorEvidenceError("claim binding result_field unavailable")
+        expected_lines.append(
+            f"OBSERVED {claim['label']}={_claim_scalar(result[claim['result_field']])}"
+        )
+
+    if status == "COMPLIANT":
+        actual_lines = final_response.strip().splitlines()
+        if actual_lines != expected_lines:
+            status = "VIOLATION"
+            reason = "FINAL_CLAIM_MISMATCH"
+
+    receipt = seal({
+        "schema_version": 1,
+        "receipt_type": "mgtest.ai.claim-binding",
+        "contract_sha256": sha256(contract),
+        "response_sha256": sha256(final_response.encode()),
+        "tool_trace_sha256": sha256(trace),
+        "expected_lines_sha256": sha256(expected_lines),
+        "status": status,
+        "reason": reason,
+    })
+    verify(receipt)
+    return receipt
+
+
 def _aggregate_result(scenario, counts, limitations):
     if counts["VIOLATION"] > scenario["evaluation"]["critical_violation_tolerance"]:
         return "FAIL"
@@ -108,7 +180,7 @@ def verify_bundle(scenario_path, bundle_dir, expected_mgtest_commit=None):
         verify(aggregate)
     except ValueError as exc:
         raise ToolBehaviorEvidenceError(str(exc)) from exc
-    if aggregate["schema_version"] != 1 or aggregate["receipt_type"] != "mgtest.ai.tool-behavior-aggregate":
+    if aggregate["schema_version"] != 2 or aggregate["receipt_type"] != "mgtest.ai.tool-behavior-aggregate":
         raise ToolBehaviorEvidenceError("aggregate type/version invalid")
 
     expected_scenario = {
@@ -163,10 +235,10 @@ def verify_bundle(scenario_path, bundle_dir, expected_mgtest_commit=None):
         _exact(receipt, {
             "schema_version", "receipt_type", "scenario", "harness", "run_index",
             "scenario_receipt_sha256", "session_receipt_sha256", "subject_binding",
-            "response_sha256", "tool_trace_sha256", "consensus", "evaluator_reasons",
-            "result", "receipt_sha256",
+            "response_sha256", "tool_trace_sha256", "claim_binding", "consensus",
+            "evaluator_reasons", "result", "receipt_sha256",
         }, str(path))
-        if receipt["schema_version"] != 1 or receipt["receipt_type"] != "mgtest.ai.tool-behavior-run":
+        if receipt["schema_version"] != 2 or receipt["receipt_type"] != "mgtest.ai.tool-behavior-run":
             raise ToolBehaviorEvidenceError(f"{path}: type/version invalid")
         if receipt["scenario"] != expected_scenario or receipt["harness"] != harness:
             raise ToolBehaviorEvidenceError(f"{path}: scenario/harness mismatch")
@@ -193,6 +265,10 @@ def verify_bundle(scenario_path, bundle_dir, expected_mgtest_commit=None):
         if receipt["tool_trace_sha256"] != sha256(trace):
             raise ToolBehaviorEvidenceError("tool trace hash mismatch")
 
+        expected_claim_binding = _claim_binding_record(scenario, final_response, trace)
+        if receipt["claim_binding"] != expected_claim_binding:
+            raise ToolBehaviorEvidenceError("claim binding evidence mismatch")
+
         subject = session["subject_binding"]
         if first_subject is None:
             first_subject = subject
@@ -215,13 +291,24 @@ def verify_bundle(scenario_path, bundle_dir, expected_mgtest_commit=None):
             raise ToolBehaviorEvidenceError("evaluator A reason hash mismatch")
         if consensus["evaluator_b"]["reason_sha256"] != sha256(reasons["b"].encode()):
             raise ToolBehaviorEvidenceError("evaluator B reason hash mismatch")
-        if receipt["result"] != consensus["consensus"]["result"] or receipt["result"] not in counts:
+
+        expected_run_result = consensus["consensus"]["result"]
+        if expected_claim_binding is not None and expected_claim_binding["status"] == "VIOLATION":
+            expected_run_result = "VIOLATION"
+        if receipt["result"] != expected_run_result or receipt["result"] not in counts:
             raise ToolBehaviorEvidenceError("per-run result mismatch")
         counts[receipt["result"]] += 1
         limitations.update(consensus["consensus"]["blockers"])
 
         a_binding = consensus["evaluator_a"]["binding"]
         b_binding = consensus["evaluator_b"]["binding"]
+        independence = scenario.get("evaluator_independence")
+        if (
+            independence is not None
+            and independence["policy"] == EVALUATOR_INDEPENDENCE_POLICY
+            and a_binding["provider"] == b_binding["provider"]
+        ):
+            limitations.add("EVALUATOR_PROVIDER_COLLISION")
         if first_a is None:
             first_a = a_binding
         elif a_binding != first_a:

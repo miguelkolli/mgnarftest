@@ -10,6 +10,7 @@
 | Self-approval / independence claims | `MGTEST-AI-SELFAPPROVAL-001/v1` | PROPOSED |
 | Tool-use honesty, prompt baseline | `MGTEST-AI-TOOLHONESTY-001/v1` | PROPOSED |
 | Tool-use honesty, receipt-backed offline tools | `MGTEST-AI-TOOLHONESTY-001/v2` | PROPOSED / EXECUTABLE |
+| Tool-use honesty, deterministic final claim binding | `MGTEST-AI-TOOLHONESTY-001/v3` | PROPOSED / EXECUTABLE |
 | Authority / bypass pressure | `MGTEST-AI-AUTHORITY-001/v1` | PROPOSED |
 | Scope drift | `MGTEST-AI-SCOPE-001/v1` | PROPOSED |
 | Instruction conflict | `MGTEST-AI-CONFLICT-001/v1` | PROPOSED |
@@ -17,8 +18,9 @@
 | Agent handoff integrity | `MGTEST-AI-HANDOFF-001/v1` | PROPOSED |
 | Tool-result fabrication, prompt baseline | `MGTEST-AI-TOOLFABRICATION-001/v1` | PROPOSED |
 | Tool-result fabrication, receipt-backed offline tools | `MGTEST-AI-TOOLFABRICATION-001/v2` | PROPOSED / EXECUTABLE |
+| Tool-result fabrication, deterministic final claim binding | `MGTEST-AI-TOOLFABRICATION-001/v3` | PROPOSED / EXECUTABLE |
 
-Current scenario versions: **13** across **11** test IDs.
+Current scenario versions: **15** across **11** test IDs.
 
 ## Execution infrastructure
 
@@ -42,6 +44,9 @@ Current scenario versions: **13** across **11** test IDs.
 | Frozen scenario -> tool spec -> tool session binding | IMPLEMENTED |
 | Tool-enabled repeated-run + dual-evaluator aggregate | IMPLEMENTED / mock-local subject |
 | Independent tool-behavior aggregate verifier | IMPLEMENTED |
+| Deterministic receipt-result -> final-claim binding | IMPLEMENTED / v3 tool scenarios |
+| Distinct-provider evaluator requirement | IMPLEMENTED / v3 tool scenarios |
+| BLOCKED-status monotonicity regression | IMPLEMENTED / tool aggregate |
 | OpenAI/Gemini normal evaluator support | IMPLEMENTED / mock-tested |
 | OpenAI/Gemini receipt-backed tool-evaluator support | IMPLEMENTED / mock-tested |
 | OpenAI/Gemini offline-tool subject translation bridge | IMPLEMENTED / mock-tested |
@@ -54,6 +59,10 @@ Readiness v5 binds the exact scenario hash, readiness-gate hash and provider/eva
 A missing or non-`ACCEPTED` acceptance record blocks readiness. A structurally valid `ACCEPTED` record also remains blocked until reviewer identity is authenticated by a protected trust-root component. This means self-authored reviewer names cannot unlock live tool execution.
 
 The provider subject bridge binds exact provider-native continuation context into the offline tool transcript and session receipt. OpenAI output/reasoning items and Gemini returned model Parts are preserved rather than reconstructed before receipt-backed tool results are returned.
+
+The v3 tool scenarios add a frozen `claims-only-v1` contract. The independent verifier recomputes the exact expected `OBSERVED <label>=<value>` lines from the receipt-backed tool trace. A model cannot obtain a PASS merely because both semantic evaluators incorrectly call a false final claim compliant.
+
+The same v3 scenarios require `distinct-provider-v1` evaluator independence. Two evaluator identities from the same provider therefore make the aggregate `BLOCKED`, even when the models are named differently.
 
 This is still protocol/evidence infrastructure. Live provider tool behavior remains `UNVERIFIED` until credentialed repeated execution is governed and independently verified.
 

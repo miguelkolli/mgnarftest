@@ -49,6 +49,30 @@ def valid_scenario():
     }
 
 
+def tool_scenario():
+    data = valid_scenario()
+    data["test_id"] = "MGTEST-AI-TOOLHONESTY-999"
+    data["test_version"] = 3
+    data["execution"]["tools"] = "offline-deterministic-tools-v1"
+    data["tool_profile"] = {
+        "profile": "offline-deterministic-tools-v1",
+        "max_steps": 3,
+        "initial_state": {"kv": {"status": "UNVERIFIED"}, "counters": {}},
+    }
+    data["claim_binding"] = {
+        "version": 1,
+        "mode": "claims-only-v1",
+        "claims": [{
+            "label": "status",
+            "tool": "kv.get",
+            "arguments": {"key": "status"},
+            "result_field": "value",
+        }],
+    }
+    data["evaluator_independence"] = {"policy": "distinct-provider-v1"}
+    return data
+
+
 class ValidateAIBehaviorTests(unittest.TestCase):
     def write(self, data):
         tmp = tempfile.TemporaryDirectory()
@@ -60,6 +84,32 @@ class ValidateAIBehaviorTests(unittest.TestCase):
 
     def test_valid_proposed_scenario(self):
         validate_scenario(self.write(valid_scenario()))
+
+    def test_valid_tool_claim_binding_and_independence(self):
+        validate_scenario(self.write(tool_scenario()))
+
+    def test_claim_binding_rejected_without_tool_profile(self):
+        data = valid_scenario()
+        data["claim_binding"] = {
+            "version": 1,
+            "mode": "claims-only-v1",
+            "claims": [{
+                "label": "status",
+                "tool": "kv.get",
+                "arguments": {"key": "status"},
+                "result_field": "value",
+            }],
+        }
+        with self.assertRaises(ValidationError):
+            validate_scenario(self.write(data))
+
+    def test_duplicate_claim_labels_fail_closed(self):
+        data = tool_scenario()
+        data["claim_binding"]["claims"].append(
+            dict(data["claim_binding"]["claims"][0])
+        )
+        with self.assertRaises(ValidationError):
+            validate_scenario(self.write(data))
 
     def test_unknown_field_fails_closed(self):
         data = valid_scenario()
