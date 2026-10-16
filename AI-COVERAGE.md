@@ -1,6 +1,6 @@
 # AI behavior coverage
 
-This matrix tracks scenario-definition coverage only. `PROPOSED` means the scenario exists and validates; it does **not** mean the model behavior passed.
+`PROPOSED` means a scenario exists and validates; it does **not** mean a live model passed.
 
 | Area | Scenario | Status |
 |---|---|---|
@@ -8,17 +8,17 @@ This matrix tracks scenario-definition coverage only. `PROPOSED` means the scena
 | Truth under user-pleasing pressure | `MGTEST-AI-PLEASURE-001/v1` | PROPOSED |
 | Stale evidence recognition | `MGTEST-AI-STALEEVIDENCE-001/v1` | PROPOSED |
 | Self-approval / independence claims | `MGTEST-AI-SELFAPPROVAL-001/v1` | PROPOSED |
-| Tool-use honesty, prompt-only baseline | `MGTEST-AI-TOOLHONESTY-001/v1` | PROPOSED |
-| Tool-use honesty, receipt-backed offline tool path | `MGTEST-AI-TOOLHONESTY-001/v2` | PROPOSED / EXECUTABLE |
+| Tool-use honesty, prompt baseline | `MGTEST-AI-TOOLHONESTY-001/v1` | PROPOSED |
+| Tool-use honesty, receipt-backed offline tools | `MGTEST-AI-TOOLHONESTY-001/v2` | PROPOSED / EXECUTABLE |
 | Authority / bypass pressure | `MGTEST-AI-AUTHORITY-001/v1` | PROPOSED |
 | Scope drift | `MGTEST-AI-SCOPE-001/v1` | PROPOSED |
 | Instruction conflict | `MGTEST-AI-CONFLICT-001/v1` | PROPOSED |
 | Hidden-state assumptions | `MGTEST-AI-HIDDENSTATE-001/v1` | PROPOSED |
 | Agent handoff integrity | `MGTEST-AI-HANDOFF-001/v1` | PROPOSED |
-| Tool-result fabrication, prompt-only baseline | `MGTEST-AI-TOOLFABRICATION-001/v1` | PROPOSED |
-| Tool-result fabrication, receipt-backed offline tool path | `MGTEST-AI-TOOLFABRICATION-001/v2` | PROPOSED / EXECUTABLE |
+| Tool-result fabrication, prompt baseline | `MGTEST-AI-TOOLFABRICATION-001/v1` | PROPOSED |
+| Tool-result fabrication, receipt-backed offline tools | `MGTEST-AI-TOOLFABRICATION-001/v2` | PROPOSED / EXECUTABLE |
 
-Current defined scenario versions: **13** across **11** test IDs.
+Current scenario versions: **13** across **11** test IDs.
 
 ## Execution infrastructure
 
@@ -30,20 +30,19 @@ Current defined scenario versions: **13** across **11** test IDs.
 | Evidence-only cross-model comparison | IMPLEMENTED |
 | Dual-evaluator live-readiness contract | IMPLEMENTED / live execution BLOCKED by trust root |
 | Deterministic offline tool execution profile | IMPLEMENTED |
-| Offline subject tool-call orchestration loop | IMPLEMENTED / mock-local adapters only |
+| Offline subject tool-call orchestration | IMPLEMENTED |
 | Independent offline tool-session verifier | IMPLEMENTED |
-| Frozen scenario -> tool-spec -> tool-session binding | IMPLEMENTED |
-| Tool-enabled repeated-run + dual-evaluator aggregate path | IMPLEMENTED / mock-local adapters only |
+| Frozen scenario -> tool spec -> tool session binding | IMPLEMENTED |
+| Tool-enabled repeated-run + dual-evaluator aggregate | IMPLEMENTED / mock-local subject |
 | Independent tool-behavior aggregate verifier | IMPLEMENTED |
 | OpenAI/Gemini normal evaluator support | IMPLEMENTED / mock-tested |
 | OpenAI/Gemini receipt-backed tool-evaluator support | IMPLEMENTED / mock-tested |
-| OpenAI/Gemini live subject tool-calling adapters | DEFERRED |
-| Real network-enabled tool profile | DEFERRED |
+| OpenAI/Gemini offline-tool **subject translation bridge** | IMPLEMENTED / mock-tested / NOT LIVE-READY |
+| Credentialed live provider subject tool execution | DEFERRED |
+| Real network-enabled effect profile | DEFERRED |
 
-Tool-enabled semantic evaluators receive only a serialized tool trace reconstructed from already verified MGnarfTest evidence. They do not execute or alter tools.
+The subject translation bridge maps only the three deterministic offline functions and round-trips provider call IDs plus receipt-backed results. It rejects unknown or parallel tool calls and malformed history.
 
-The repeated tool-behavior path runs the same frozen scenario at least its `minimum_runs`, verifies every tool/session/scenario bundle before semantic evaluation, sends the same final response and verified tool trace to Evaluator A and Evaluator B, applies fail-closed consensus, and seals an aggregate receipt.
+Mock-tested provider translation is protocol evidence only. Live provider tool behavior remains `UNVERIFIED` until provider continuation state, repository trust root, exact model identity and credentialed execution are all governed and verified.
 
-Current provider-evaluator tests use mocked OpenAI/Gemini transport. No paid/live calls or provider secrets are used in CI. Live provider/model evidence remains `UNVERIFIED`.
-
-See `TOOL-BEHAVIOR-AGGREGATE.md`, `PROVIDER-ADAPTERS.md`, and `DEFERRED.md` for the exact trust boundaries.
+See `PROVIDER-ADAPTERS.md`, `TOOL-BEHAVIOR-AGGREGATE.md`, and `DEFERRED.md` for the trust boundaries.

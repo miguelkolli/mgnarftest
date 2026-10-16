@@ -59,6 +59,7 @@ jobs:
             tools/test_ai_live_readiness.py \
             tools/test_provider_adapters.py \
             adapters/provider_common.py \
+            adapters/provider_tool_bridge.py \
             adapters/openai_adapter.py \
             adapters/gemini_adapter.py
 

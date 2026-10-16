@@ -6,8 +6,10 @@ import sys
 
 try:
     from .provider_common import AdapterError, evaluator_prompt, post_json, require_no_tools_subject, require_request, strict_eval_json
+    from .provider_tool_bridge import OPENAI_TOOLS, action, openai_input, require_offline_tool_request
 except ImportError:
     from provider_common import AdapterError, evaluator_prompt, post_json, require_no_tools_subject, require_request, strict_eval_json
+    from provider_tool_bridge import OPENAI_TOOLS, action, openai_input, require_offline_tool_request
 
 ENDPOINT = "https://api.openai.com/v1/responses"
 PROVIDER = "openai"
@@ -32,16 +34,35 @@ def extract_text(response):
     return "".join(texts)
 
 
-def _payload(model, instructions, input_text, max_output_tokens, temperature):
+def _payload(model, instructions, input_value, max_output_tokens, temperature, tools=None):
     payload = {
         "model": model,
         "instructions": instructions,
-        "input": input_text,
+        "input": input_value,
         "max_output_tokens": max_output_tokens,
     }
     if temperature is not None:
         payload["temperature"] = temperature
+    if tools is not None:
+        payload["tools"] = tools
     return payload
+
+
+def _offline_tool_action(response, *, model, immutable_version, params):
+    output = response.get("output")
+    if not isinstance(output, list):
+        raise AdapterError("OpenAI response output missing")
+    calls = [item for item in output if isinstance(item, dict) and item.get("type") == "function_call"]
+    if len(calls) > 1:
+        raise AdapterError("OpenAI returned multiple tool calls; MGnarfTest offline profile is sequential")
+    actual_model = response.get("model") if isinstance(response.get("model"), str) else model
+    if calls:
+        call = calls[0]
+        return action(
+            PROVIDER, actual_model, immutable_version, params,
+            call_id=call.get("call_id"), provider_name=call.get("name"), arguments=call.get("arguments"),
+        )
+    return action(PROVIDER, actual_model, immutable_version, params, final_text=extract_text(response))
 
 
 def process_request(request, *, model, immutable_version=None, max_output_tokens=512, temperature=None,
@@ -69,6 +90,20 @@ def process_request(request, *, model, immutable_version=None, max_output_tokens
             "network_configuration": execution["network"],
             "response_text": extract_text(response),
         }
+    if kind == "mgtest.ai.offline-tool-subject":
+        _, history, system_context, user_message = require_offline_tool_request(request)
+        instructions = (
+            system_context
+            + "\n\nMGnarfTest tool boundary: use only the declared deterministic offline tools. "
+              "Request at most one tool call per response. Never invent a tool result. "
+              "When enough receipt-backed evidence is available, return the final answer as text."
+        )
+        payload = _payload(
+            model, instructions, openai_input(user_message, history),
+            max_output_tokens, temperature, tools=OPENAI_TOOLS,
+        )
+        response = post(ENDPOINT, headers, payload)
+        return _offline_tool_action(response, model=model, immutable_version=immutable_version, params=params)
     if kind in {"mgtest.ai.evaluator", "mgtest.ai.tool-evaluator"}:
         if not evaluator_id or not evaluator_version:
             raise AdapterError("evaluator id/version required")

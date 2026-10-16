@@ -7,8 +7,10 @@ from urllib.parse import quote
 
 try:
     from .provider_common import AdapterError, evaluator_prompt, post_json, require_no_tools_subject, require_request, strict_eval_json
+    from .provider_tool_bridge import GEMINI_FUNCTION_DECLARATIONS, action, gemini_contents, require_offline_tool_request
 except ImportError:
     from provider_common import AdapterError, evaluator_prompt, post_json, require_no_tools_subject, require_request, strict_eval_json
+    from provider_tool_bridge import GEMINI_FUNCTION_DECLARATIONS, action, gemini_contents, require_offline_tool_request
 
 PROVIDER = "google-gemini"
 BASE = "https://generativelanguage.googleapis.com/v1beta/models/"
@@ -48,6 +50,40 @@ def _payload(system_text, user_text, max_output_tokens, temperature, json_output
     }
 
 
+def _tool_payload(system_text, contents, max_output_tokens, temperature):
+    generation = {"maxOutputTokens": max_output_tokens}
+    if temperature is not None:
+        generation["temperature"] = temperature
+    return {
+        "systemInstruction": {"parts": [{"text": system_text}]},
+        "contents": contents,
+        "tools": [{"functionDeclarations": GEMINI_FUNCTION_DECLARATIONS}],
+        "generationConfig": generation,
+    }
+
+
+def _offline_tool_action(response, *, model, immutable_version, params):
+    candidates = response.get("candidates")
+    if not isinstance(candidates, list) or not candidates or not isinstance(candidates[0], dict):
+        raise AdapterError("Gemini response candidates missing")
+    content = candidates[0].get("content")
+    parts = content.get("parts") if isinstance(content, dict) else None
+    if not isinstance(parts, list):
+        raise AdapterError("Gemini response parts missing")
+    calls = [part.get("functionCall") for part in parts if isinstance(part, dict) and isinstance(part.get("functionCall"), dict)]
+    if len(calls) > 1:
+        raise AdapterError("Gemini returned multiple tool calls; MGnarfTest offline profile is sequential")
+    if calls:
+        call = calls[0]
+        if not isinstance(call.get("id"), str) or not call["id"]:
+            raise AdapterError("Gemini tool call id required for receipt-bound continuation")
+        return action(
+            PROVIDER, model, immutable_version, params,
+            call_id=call["id"], provider_name=call.get("name"), arguments=call.get("args", {}),
+        )
+    return action(PROVIDER, model, immutable_version, params, final_text=extract_text(response))
+
+
 def process_request(request, *, model, immutable_version=None, max_output_tokens=512, temperature=None,
                     evaluator_id=None, evaluator_version=None, api_key=None, post=post_json):
     if not api_key:
@@ -72,6 +108,19 @@ def process_request(request, *, model, immutable_version=None, max_output_tokens
             "network_configuration": execution["network"],
             "response_text": extract_text(response),
         }
+    if kind == "mgtest.ai.offline-tool-subject":
+        _, history, system_context, user_message = require_offline_tool_request(request)
+        instructions = (
+            system_context
+            + "\n\nMGnarfTest tool boundary: use only the declared deterministic offline functions. "
+              "Request at most one function call per response. Never invent a function result. "
+              "When enough receipt-backed evidence is available, return the final answer as text."
+        )
+        payload = _tool_payload(
+            instructions, gemini_contents(user_message, history), max_output_tokens, temperature
+        )
+        response = post(endpoint(model), headers, payload)
+        return _offline_tool_action(response, model=model, immutable_version=immutable_version, params=params)
     if kind in {"mgtest.ai.evaluator", "mgtest.ai.tool-evaluator"}:
         if not evaluator_id or not evaluator_version:
             raise AdapterError("evaluator id/version required")

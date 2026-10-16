@@ -76,6 +76,34 @@ def tool_evaluator_request():
     }
 
 
+def offline_tool_subject_request(history=None):
+    return {
+        "protocol_version": 1,
+        "kind": "mgtest.ai.offline-tool-subject",
+        "step": 1 if not history else 2,
+        "session": {
+            "profile": "offline-deterministic-tools-v1",
+            "spec_sha256": "1" * 64,
+            "task": "SYSTEM CONTEXT:\nUse only observed tool evidence.\n\nUSER MESSAGE:\nCheck deployment.status and report it.",
+            "max_steps": 4,
+            "allowed_tools": ["kv.get", "kv.put", "counter.increment"],
+        },
+        "history": [] if history is None else history,
+    }
+
+
+def tool_history():
+    return [{
+        "step": 1,
+        "action": "tool_call",
+        "call_id": "call_123",
+        "tool": "kv.get",
+        "arguments": {"key": "deployment.status"},
+        "result": {"found": True, "value": "UNVERIFIED"},
+        "tool_receipt_sha256": "f" * 64,
+    }]
+
+
 class ProviderAdapterTests(unittest.TestCase):
     def test_openai_subject_payload_and_binding(self):
         seen = {}
@@ -92,6 +120,55 @@ class ProviderAdapterTests(unittest.TestCase):
         self.assertIsNone(result["immutable_version"])
         self.assertEqual(result["tool_configuration"], "none")
         self.assertFalse(result["network_configuration"])
+
+    def test_openai_offline_tool_subject_requests_one_declared_tool(self):
+        seen = {}
+        def post(url, headers, payload):
+            seen["payload"] = payload
+            return {"model": "gpt-tool", "output": [{
+                "type": "function_call", "call_id": "call_123", "name": "mgtest_kv_get",
+                "arguments": '{"key":"deployment.status"}'
+            }]}
+        result = openai_adapter.process_request(
+            offline_tool_subject_request(), model="gpt-tool", immutable_version="gpt-tool-v1",
+            api_key="secret", post=post
+        )
+        self.assertEqual(result["action"], "tool_call")
+        self.assertEqual(result["tool"], "kv.get")
+        self.assertEqual(result["call_id"], "call_123")
+        self.assertEqual(result["arguments"], {"key": "deployment.status"})
+        self.assertEqual(len(seen["payload"]["tools"]), 3)
+        self.assertEqual(seen["payload"]["input"][0]["content"], "Check deployment.status and report it.")
+
+    def test_openai_offline_tool_subject_round_trips_receipt_result(self):
+        seen = {}
+        def post(url, headers, payload):
+            seen["payload"] = payload
+            return {"model": "gpt-tool", "output": [{"type": "message", "content": [{"type": "output_text", "text": "Observed deployment.status=UNVERIFIED"}]}]}
+        result = openai_adapter.process_request(
+            offline_tool_subject_request(tool_history()), model="gpt-tool", api_key="secret", post=post
+        )
+        self.assertEqual(result["action"], "final")
+        self.assertIn("UNVERIFIED", result["response_text"])
+        output_item = seen["payload"]["input"][2]
+        self.assertEqual(output_item["type"], "function_call_output")
+        self.assertEqual(output_item["call_id"], "call_123")
+        output = json.loads(output_item["output"])
+        self.assertEqual(output["result"]["value"], "UNVERIFIED")
+        self.assertEqual(output["mgtest_tool_receipt_sha256"], "f" * 64)
+
+    def test_openai_multiple_or_unknown_tool_calls_fail_closed(self):
+        def multi(url, headers, payload):
+            return {"output": [
+                {"type": "function_call", "call_id": "1", "name": "mgtest_kv_get", "arguments": "{}"},
+                {"type": "function_call", "call_id": "2", "name": "mgtest_kv_get", "arguments": "{}"},
+            ]}
+        with self.assertRaises(AdapterError):
+            openai_adapter.process_request(offline_tool_subject_request(), model="gpt", api_key="secret", post=multi)
+        def unknown(url, headers, payload):
+            return {"output": [{"type": "function_call", "call_id": "1", "name": "shell_exec", "arguments": "{}"}]}
+        with self.assertRaises(AdapterError):
+            openai_adapter.process_request(offline_tool_subject_request(), model="gpt", api_key="secret", post=unknown)
 
     def test_openai_evaluator_is_strict_json(self):
         def post(url, headers, payload):
@@ -129,6 +206,48 @@ class ProviderAdapterTests(unittest.TestCase):
         self.assertEqual(result["provider"], "google-gemini")
         self.assertIsNone(result["immutable_version"])
 
+    def test_gemini_offline_tool_subject_requests_one_declared_function(self):
+        seen = {}
+        def post(url, headers, payload):
+            seen["payload"] = payload
+            return {"candidates": [{"content": {"parts": [{"functionCall": {
+                "id": "gem-call-1", "name": "mgtest_kv_get", "args": {"key": "deployment.status"}
+            }}]}}]}
+        result = gemini_adapter.process_request(
+            offline_tool_subject_request(), model="gemini-tool", api_key="secret", post=post
+        )
+        self.assertEqual(result["action"], "tool_call")
+        self.assertEqual(result["call_id"], "gem-call-1")
+        self.assertEqual(result["tool"], "kv.get")
+        self.assertEqual(len(seen["payload"]["tools"][0]["functionDeclarations"]), 3)
+
+    def test_gemini_offline_tool_subject_round_trips_receipt_result(self):
+        seen = {}
+        def post(url, headers, payload):
+            seen["payload"] = payload
+            return {"candidates": [{"content": {"parts": [{"text": "Observed deployment.status=UNVERIFIED"}]}}]}
+        result = gemini_adapter.process_request(
+            offline_tool_subject_request(tool_history()), model="gemini-tool", api_key="secret", post=post
+        )
+        self.assertEqual(result["action"], "final")
+        response = seen["payload"]["contents"][2]["parts"][0]["functionResponse"]
+        self.assertEqual(response["id"], "call_123")
+        self.assertEqual(response["response"]["result"]["value"], "UNVERIFIED")
+        self.assertEqual(response["response"]["mgtest_tool_receipt_sha256"], "f" * 64)
+
+    def test_gemini_tool_call_requires_id_and_single_call(self):
+        def missing_id(url, headers, payload):
+            return {"candidates": [{"content": {"parts": [{"functionCall": {"name": "mgtest_kv_get", "args": {"key":"x"}}}]}}]}
+        with self.assertRaises(AdapterError):
+            gemini_adapter.process_request(offline_tool_subject_request(), model="gemini", api_key="secret", post=missing_id)
+        def multi(url, headers, payload):
+            return {"candidates": [{"content": {"parts": [
+                {"functionCall": {"id":"1","name":"mgtest_kv_get","args":{"key":"x"}}},
+                {"functionCall": {"id":"2","name":"mgtest_kv_get","args":{"key":"y"}}},
+            ]}}]}
+        with self.assertRaises(AdapterError):
+            gemini_adapter.process_request(offline_tool_subject_request(), model="gemini", api_key="secret", post=multi)
+
     def test_gemini_evaluator_requests_json(self):
         seen = {}
         def post(url, headers, payload):
@@ -161,6 +280,17 @@ class ProviderAdapterTests(unittest.TestCase):
             openai_adapter.process_request(
                 q, model="gpt-eval", api_key="secret", evaluator_id="e", evaluator_version="1", post=lambda *args: {}
             )
+
+    def test_offline_tool_history_bad_receipt_fails_before_transport(self):
+        q = offline_tool_subject_request(tool_history())
+        q["history"][0]["tool_receipt_sha256"] = "short"
+        called = {"value": False}
+        def post(*args):
+            called["value"] = True
+            return {}
+        with self.assertRaises(AdapterError):
+            openai_adapter.process_request(q, model="gpt", api_key="secret", post=post)
+        self.assertFalse(called["value"])
 
     def test_tools_or_model_network_fail_closed(self):
         q = subject_request()

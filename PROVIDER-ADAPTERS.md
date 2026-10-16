@@ -1,78 +1,97 @@
 # Provider Adapters v1
 
-MGnarfTest AI behavior runs use provider-specific adapters behind the provider-neutral runner protocol.
+MGnarfTest uses provider-specific adapters behind provider-neutral runner protocols.
 
-Included adapters:
+Included:
 
 - `adapters/openai_adapter.py` — OpenAI Responses API
 - `adapters/gemini_adapter.py` — Google Gemini `generateContent`
+- `adapters/provider_tool_bridge.py` — closed translation between provider function calls and the deterministic MGnarfTest offline tool profile
 
-Both are Python-standard-library only. Scenario data cannot choose an arbitrary provider URL. Credentials are read only from the provider environment variable explicitly passed to the runner (`OPENAI_API_KEY` or `GEMINI_API_KEY`) and are never returned in adapter JSON or receipts.
+Credentials are read only from explicitly passed provider environment variables and are never returned in adapter JSON or receipts. Scenario data cannot choose arbitrary provider URLs.
 
-## Subject capability boundary
+## Normal subject boundary
 
-Provider subject adapters v1 intentionally support only frozen subject scenarios whose execution contract is:
+Normal `mgtest.ai.subject` requests still require:
 
 ```text
 tools = none
 network = false
 ```
 
-Here `network=false` means no network capability is exposed to the tested model/agent. HTTPS transport used by the adapter to reach the selected provider is a separate transport boundary. A subject scenario requesting model tools or model network access fails closed instead of silently changing the test.
+Provider HTTPS transport is separate from model network capability.
 
-Receipt-backed tool-enabled **subject** execution therefore still uses the local/mock offline tool-agent protocol. Live OpenAI/Gemini subject tool calling is not enabled by this adapter change.
+## Receipt-backed tool evaluator support
 
-## Evaluator capability
+OpenAI and Gemini evaluator adapters accept both normal and tool-evaluator requests. A tool evaluator receives only already-verified evidence data: subject binding, scenario/session receipt hashes and the verified tool trace. Missing or malformed receipt evidence fails closed before provider transport.
 
-Evaluator adapters accept both:
+The evaluator does not execute tools.
+
+## Offline-tool subject translation bridge
+
+The adapters now also understand `mgtest.ai.offline-tool-subject` in mock-tested form.
+
+The bridge exposes exactly three provider function names, mapped to the existing deterministic tools:
 
 ```text
-mgtest.ai.evaluator
-mgtest.ai.tool-evaluator
+mgtest_kv_get              -> kv.get
+mgtest_kv_put              -> kv.put
+mgtest_counter_increment   -> counter.increment
 ```
 
-For a normal evaluator request, the provider receives the frozen scenario rubric and exact subject response.
+No provider-selected arbitrary tool name is accepted.
 
-For a tool evaluator request, MGnarfTest additionally supplies only already-verified tool evidence:
+The adapter:
 
-- exact subject binding
-- scenario receipt SHA-256
-- session receipt SHA-256
-- verified tool trace (tool, arguments, actual result and tool-receipt hash)
+1. validates the closed MGnarfTest offline-tool request and allowlist;
+2. reconstructs the frozen system/user task;
+3. sends only the three declared deterministic functions;
+4. accepts at most one function/tool call per provider response;
+5. maps the provider call ID, name and arguments into the MGnarfTest subject-action protocol;
+6. after MGnarfTest executes the tool, round-trips the receipt-backed result using the same call ID;
+7. returns final provider text only when no function call is present.
 
-The adapter validates the tool-evidence shape before any provider request is made. Missing or malformed receipt evidence fails closed.
+OpenAI uses Responses API function tools plus `function_call` / `function_call_output` items. Gemini uses `functionDeclarations` plus `functionCall` / `functionResponse` parts.
 
-The evaluator is instructed to classify the subject response against both the frozen rubric and the receipt-backed tool evidence. It does not execute tools or modify the tool trace.
+Tool results are executed only by MGnarfTest's deterministic offline executor. Provider code never executes them.
 
-Evaluator output remains exactly:
+## Fail-closed rules
 
-```json
-{"result":"COMPLIANT|VIOLATION|INCONCLUSIVE","reason":"..."}
-```
+The bridge rejects before execution/continuation when it sees:
 
-Anything else is rejected as an adapter error.
+- an undeclared provider function name
+- more than one tool call in a single subject step
+- malformed tool arguments
+- malformed or mismatched offline-tool history
+- missing receipt hashes in prior tool results
+- a Gemini function call without an ID
+
+Subject tool history includes the MGnarfTest tool receipt hash alongside the actual result returned to the provider.
+
+## Live-readiness limitation
+
+This subject bridge is **mock-tested protocol infrastructure, not credentialed live-provider evidence**.
+
+Before live use, provider continuation state must be bound sufficiently for the selected provider/model family. In particular, provider-returned continuation/reasoning/context items that must be round-tripped must not be silently discarded. The repository trust root must also be enforceable before provider secrets are wired into a workflow.
+
+Until those conditions are satisfied, live OpenAI/Gemini tool behavior remains `UNVERIFIED` and credentialed execution remains blocked.
 
 ## Immutable model identity
 
-Adapters never infer an immutable model version from a mutable alias. `--immutable-version` is optional and must be supplied only when an immutable provider snapshot/build identity is actually known. Without that evidence the runner preserves `immutable_version = null`; scenarios requiring immutable identity therefore cannot receive a strong aggregate PASS and are limited by runner policy.
-
-## Security boundary
-
-Supporting `mgtest.ai.tool-evaluator` does **not** grant provider models a tool capability. Tool execution remains inside MGnarfTest's deterministic offline executor. The provider evaluator receives a serialized, already-verified evidence trace as data only.
-
-No repository workflow currently exposes provider secrets for live tool-behavior execution while the repository trust root is `UNPROTECTED`.
+Adapters never infer an immutable model version from a mutable alias. `--immutable-version` may be supplied only when an immutable provider snapshot/build identity is actually known. Otherwise it remains `null` and strong-comparison policy records the limitation.
 
 ## Testing
 
-`tools/test_provider_adapters.py` uses mocked provider calls. It verifies:
+`tools/test_provider_adapters.py` uses mocked provider transport and covers:
 
-- payload shape and authentication-header selection
+- normal subject/evaluator payloads
+- receipt-backed tool evaluators
+- OpenAI offline-tool subject call + result round-trip
+- Gemini offline-tool subject call + result round-trip
+- strict one-call-per-step behavior
+- unknown-tool rejection
+- Gemini call-ID requirement
+- malformed history/receipt rejection before transport
 - strict evaluator JSON handling
-- immutable-version non-inference
-- fail-closed rejection of unsupported subject tool/network capability
-- OpenAI and Gemini tool-evaluator prompt inclusion of receipt-backed tool evidence
-- rejection of malformed/missing tool-evaluator evidence before transport
 
 CI performs no paid/live model calls and requires no provider secret.
-
-Real provider/model behavior evidence remains `UNVERIFIED` until the applicable runner is executed against real provider models with credentials, exact frozen scenario and independently verified evidence.
