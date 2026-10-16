@@ -10,6 +10,7 @@ STATUSES = {"PROPOSED", "REVIEW-A", "REVIEW-B", "STABLE", "NEEDS-REVISION", "BLO
 PER_RUN_RESULTS = {"COMPLIANT", "VIOLATION", "INCONCLUSIVE", "ERROR"}
 AGGREGATE_RESULTS = {"PASS", "FAIL", "BLOCKED", "UNVERIFIED", "LIMITATION_CONFIRMED"}
 ID_RE = re.compile(r"^MGTEST-AI-[A-Z0-9]+-[0-9]{3}$")
+OFFLINE_TOOL_PROFILE = "offline-deterministic-tools-v1"
 
 
 class ValidationError(ValueError):
@@ -39,17 +40,44 @@ def require_string_list(value, where):
         require_nonempty_string(item, f"{where}[{index}]")
 
 
+def validate_tool_profile(value, where):
+    require_exact_keys(value, {"profile", "max_steps", "initial_state"}, where)
+    if value["profile"] != OFFLINE_TOOL_PROFILE:
+        raise ValidationError(f"{where}.profile must be {OFFLINE_TOOL_PROFILE}")
+    max_steps = value["max_steps"]
+    if not isinstance(max_steps, int) or isinstance(max_steps, bool) or not 1 <= max_steps <= 16:
+        raise ValidationError(f"{where}.max_steps must be integer 1..16")
+    state = value["initial_state"]
+    require_exact_keys(state, {"kv", "counters"}, f"{where}.initial_state")
+    if not isinstance(state["kv"], dict) or not isinstance(state["counters"], dict):
+        raise ValidationError(f"{where}.initial_state kv/counters objects required")
+    for key, item in state["kv"].items():
+        require_nonempty_string(key, f"{where}.initial_state.kv key")
+        if not isinstance(item, str):
+            raise ValidationError(f"{where}.initial_state.kv values must be strings")
+    for key, item in state["counters"].items():
+        require_nonempty_string(key, f"{where}.initial_state.counters key")
+        if not isinstance(item, int) or isinstance(item, bool) or item < 0:
+            raise ValidationError(f"{where}.initial_state.counters values must be non-negative integers")
+
+
 def validate_scenario(path: Path):
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except Exception as exc:
         raise ValidationError(f"{path}: invalid JSON: {exc}") from exc
 
-    root_keys = {
+    base_keys = {
         "schema_version", "test_id", "test_version", "status", "category", "purpose",
         "stimulus", "target_policy", "execution", "evaluation", "review", "limits",
     }
-    require_exact_keys(data, root_keys, str(path))
+    allowed_root = base_keys | {"tool_profile"}
+    if not isinstance(data, dict):
+        raise ValidationError(f"{path}: object required")
+    missing = base_keys - set(data)
+    unknown = set(data) - allowed_root
+    if missing or unknown:
+        raise ValidationError(f"{path}: missing={sorted(missing)} unknown={sorted(unknown)}")
 
     if data["schema_version"] != 1:
         raise ValidationError(f"{path}: schema_version must be 1")
@@ -94,6 +122,16 @@ def validate_scenario(path: Path):
     require_nonempty_string(execution["tools"], f"{path}: execution.tools")
     if not isinstance(execution["network"], bool):
         raise ValidationError(f"{path}: execution.network must be boolean")
+
+    has_tool_profile = "tool_profile" in data
+    if execution["tools"] == OFFLINE_TOOL_PROFILE:
+        if execution["network"] is not False:
+            raise ValidationError(f"{path}: offline tool profile requires network=false")
+        if not has_tool_profile:
+            raise ValidationError(f"{path}: offline tool profile requires tool_profile")
+        validate_tool_profile(data["tool_profile"], f"{path}: tool_profile")
+    elif has_tool_profile:
+        raise ValidationError(f"{path}: tool_profile only allowed with tools={OFFLINE_TOOL_PROFILE}")
 
     evaluation = data["evaluation"]
     require_exact_keys(

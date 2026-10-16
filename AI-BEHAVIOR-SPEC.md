@@ -17,6 +17,8 @@ Recommended ID: `MGTEST-AI-<AREA>-NNN`.
 
 Ready-made scenarios and completely new community scenarios use the same lifecycle and review rules. Material changes to the stimulus, invariant, evaluation rule or trust assumption require a new test version.
 
+This rule is also used for execution capability changes. The prompt-only `TOOLHONESTY/v1` and `TOOLFABRICATION/v1` scenarios are preserved; receipt-backed tool execution is introduced as separate `v2` test versions instead of silently changing v1 semantics.
+
 ## Model/run binding
 
 A model alias is not assumed to be immutable. Each execution receipt must record, when available:
@@ -59,7 +61,9 @@ A harness/provider/evaluator failure is not a PASS.
 
 Machine-checkable signals should be used where reliable, but semantic behavior must not be reduced to brittle keyword matching when meaning matters.
 
-A model must not be the sole authority certifying its own behavior. For STABLE promotion, semantic rubrics/results require the normal two authenticated reviewers and at least one declared external reviewer.
+A model must not be the sole authority certifying its own behavior. The dual-evaluator path applies fail-closed consensus: disagreement cannot become COMPLIANT and any evaluator VIOLATION remains a VIOLATION.
+
+For STABLE promotion, semantic rubrics/results require the normal two authenticated reviewers and at least one declared external reviewer.
 
 The repository validator can verify distinct GitHub identities and the external-review declaration. It cannot prove real-world organizational or epistemic independence. That stronger claim requires review evidence outside the author's control.
 
@@ -78,6 +82,56 @@ The external reviewer must be outside the test author's control and must not be 
 
 Any change to the reviewed test version after approval requires review again.
 
+## Tool-enabled scenario contract
+
+A scenario may bind to the deterministic offline tool profile when:
+
+```text
+execution.tools = offline-deterministic-tools-v1
+execution.network = false
+```
+
+and the scenario contains a closed `tool_profile` object defining:
+
+- exact profile ID
+- `max_steps` in the allowed range
+- deterministic initial `kv` and `counters` state
+
+The execution path is:
+
+```text
+frozen scenario
+  -> derived tool-session spec
+  -> subject tool request
+  -> MGnarfTest offline executor
+  -> sealed tool receipt
+  -> receipt-backed tool result
+  -> subject final response
+  -> offline session verifier
+  -> scenario binding receipt verifier
+```
+
+The model may request a tool call but may not supply its own tool result. The result returned to the next model step comes from the MGnarfTest executor receipt.
+
+A tool-enabled scenario receipt binds the exact scenario ID/version/hash, derived tool-spec hash, tool-session receipt hash and MGnarfTest commit. The verifier rebuilds the spec from the frozen scenario and verifies the underlying session before accepting the wrapper receipt.
+
+Current receipt-backed tool-enabled scenarios:
+
+- `MGTEST-AI-TOOLHONESTY-001/v2`
+- `MGTEST-AI-TOOLFABRICATION-001/v2`
+
+These scenarios are executable with local/mock subject adapters. That infrastructure result is not a live-model behavior PASS.
+
+## Cross-model comparison
+
+Cross-model comparison is implemented as an evidence-only comparator, not as an ordinary single-subject scenario.
+
+It consumes independently verified dual-evaluator bundles and requires equality of the frozen comparison boundary, including scenario, MGnarfTest commit, dual-runner identity, evaluator identities/adapters, consensus policy and run count. Subject model identities must be distinct.
+
+The comparator reports comparability (`STRONG`, `LIMITED` or `BLOCKED`) while preserving each model's own execution result. It does not produce an automatic winner, leaderboard rank or global PASS.
+
+Credentialed multi-subject orchestration remains deferred until the repository trust root allows live provider execution.
+
 ## Current scenario coverage
 
 The current scenario set covers:
@@ -86,23 +140,28 @@ The current scenario set covers:
 - truth under user-pleasing pressure
 - stale evidence recognition
 - self-approval / independence claims
-- tool-use honesty
+- tool-use honesty (prompt-only v1 and receipt-backed v2)
 - authority/bypass pressure
 - scope drift
 - prompt/instruction conflict
 - hidden-state assumptions
 - agent handoff integrity
-- tool-result fabrication
+- tool-result fabrication (prompt-only v1 and receipt-backed v2)
 
-See `AI-COVERAGE.md` for exact test IDs and status.
+See `AI-COVERAGE.md` for exact test IDs, versions and status.
 
-## Deliberately separate later capabilities
+## Still-deferred capabilities
 
-Cross-model comparison is not represented as an ordinary single-subject scenario. It requires a multi-subject comparison harness that binds each subject model/version/configuration independently and preserves evaluator separation.
+The following remain intentionally deferred:
 
-Tool-enabled or network-enabled adversarial scenarios also require an isolated execution profile before they may perform real effects. They must not be enabled by simply changing `tools` or `network` in a scenario while the current provider adapter/readiness boundary forbids those capabilities.
+- credentialed OpenAI/Gemini live execution while the repository trust root is unprotected
+- live provider tool-calling adapters; current provider adapters remain `tools=none`
+- real network-enabled tool profiles and external side effects
+- STABLE promotion until repository trust controls and required external review exist
 
-See `DEFERRED.md` for the trust-root, live-provider and later execution prerequisites.
+These are prerequisites for the claims they govern, not blockers for continued private-repository development.
+
+See `DEFERRED.md` for the trust-root and live-provider prerequisites.
 
 ## Privacy and safety
 

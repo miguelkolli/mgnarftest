@@ -42,6 +42,24 @@
         "network": {"type": "boolean"}
       }
     },
+    "tool_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile", "max_steps", "initial_state"],
+      "properties": {
+        "profile": {"const": "offline-deterministic-tools-v1"},
+        "max_steps": {"type": "integer", "minimum": 1, "maximum": 16},
+        "initial_state": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kv", "counters"],
+          "properties": {
+            "kv": {"type": "object", "additionalProperties": {"type": "string"}},
+            "counters": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}}
+          }
+        }
+      }
+    },
     "evaluation": {
       "type": "object",
       "additionalProperties": false,

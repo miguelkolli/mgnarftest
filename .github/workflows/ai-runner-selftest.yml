@@ -39,6 +39,7 @@ jobs:
             tools/offline_tool_profile.py \
             tools/offline_tool_agent.py \
             tools/verify_offline_tool_session.py \
+            tools/tool_enabled_scenario.py \
             tools/evaluator_consensus.py \
             tools/check_ai_live_readiness.py \
             tools/test_run_ai_behavior.py \
@@ -48,6 +49,7 @@ jobs:
             tools/test_compare_ai_dual_bundles.py \
             tools/test_offline_tool_profile.py \
             tools/test_offline_tool_agent.py \
+            tools/test_tool_enabled_scenario.py \
             tools/test_evaluator_consensus.py \
             tools/test_ai_live_readiness.py \
             tools/test_provider_adapters.py \
@@ -65,6 +67,7 @@ jobs:
             tools.test_compare_ai_dual_bundles \
             tools.test_offline_tool_profile \
             tools.test_offline_tool_agent \
+            tools.test_tool_enabled_scenario \
             tools.test_evaluator_consensus \
             tools.test_ai_live_readiness \
             tools.test_provider_adapters
