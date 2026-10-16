@@ -15,6 +15,7 @@ These items are intentionally **not blockers** for continuing private-repository
 - After trust-root enforcement exists, add a credentialed live-run workflow that checks out an exact trusted commit and runs the existing readiness gate before provider access.
 - Capture immutable provider model snapshot/version/build identifiers when the provider exposes them; otherwise record the limitation.
 - Run real repeated model executions and verify every evidence bundle independently before making any AI behavior result claim.
+- Add credentialed multi-subject orchestration for real cross-model runs. The evidence-only cross-model comparator is implemented, but it intentionally does not perform provider calls.
 
 ## External acceptance
 
@@ -24,6 +25,5 @@ These items are intentionally **not blockers** for continuing private-repository
 
 ## Later execution capabilities
 
-- Build a multi-subject cross-model comparison harness. Current runner semantics test one subject model plus a separate evaluator, so cross-model comparison must not be represented as an ordinary single-subject scenario.
 - Add isolated tool-enabled and network-enabled AI execution profiles before scenarios are allowed to exercise real tools or external network effects.
 - Add additional providers only behind the same adapter provenance, readiness and evidence-verification boundaries.
