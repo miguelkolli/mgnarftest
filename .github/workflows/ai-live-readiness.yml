@@ -1,0 +1,89 @@
+name: MGnarfTest AI live readiness
+
+on:
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: "Versioned scenario path under ai-tests/"
+        required: true
+        default: "ai-tests/MGTEST-AI-FALSEPASS-001/v1/scenario.json"
+        type: string
+      subject_provider:
+        description: "Subject provider"
+        required: true
+        default: "openai"
+        type: choice
+        options:
+          - openai
+          - google-gemini
+      subject_model:
+        description: "Subject model alias/name"
+        required: true
+        type: string
+      evaluator_provider:
+        description: "Evaluator provider"
+        required: true
+        default: "google-gemini"
+        type: choice
+        options:
+          - openai
+          - google-gemini
+      evaluator_model:
+        description: "Evaluator model alias/name"
+        required: true
+        type: string
+      runs:
+        description: "Requested repeated runs"
+        required: true
+        default: "20"
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact selected ref
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Verify exact checkout
+        run: test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+
+      - name: Compile readiness gate
+        run: python3 -m py_compile tools/check_ai_live_readiness.py
+
+      - name: Evaluate live-run readiness
+        id: readiness
+        continue-on-error: true
+        run: |
+          python3 tools/check_ai_live_readiness.py \
+            --scenario "${{ inputs.scenario }}" \
+            --mgtest-commit "${GITHUB_SHA}" \
+            --subject-provider "${{ inputs.subject_provider }}" \
+            --subject-model "${{ inputs.subject_model }}" \
+            --evaluator-provider "${{ inputs.evaluator_provider }}" \
+            --evaluator-model "${{ inputs.evaluator_model }}" \
+            --runs "${{ inputs.runs }}" \
+            --output live-readiness.json
+
+      - name: Upload readiness evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: mgnarftest-ai-live-readiness-${{ github.run_id }}
+          path: live-readiness.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce readiness decision
+        if: always()
+        run: |
+          test "${{ steps.readiness.outcome }}" = "success"
