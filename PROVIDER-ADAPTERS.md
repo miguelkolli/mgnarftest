@@ -9,49 +9,70 @@ Included adapters:
 
 Both are Python-standard-library only. Scenario data cannot choose an arbitrary provider URL. Credentials are read only from the provider environment variable explicitly passed to the runner (`OPENAI_API_KEY` or `GEMINI_API_KEY`) and are never returned in adapter JSON or receipts.
 
-## Initial capability boundary
+## Subject capability boundary
 
-Provider adapters v1 intentionally support only subject scenarios whose frozen execution contract is:
+Provider subject adapters v1 intentionally support only frozen subject scenarios whose execution contract is:
 
 ```text
 tools = none
 network = false
 ```
 
-Here `network=false` means no network capability is exposed to the tested model/agent. HTTPS transport used by the adapter to reach the selected provider is a separate transport boundary. A scenario requesting model tools or model network access fails closed instead of silently changing the test.
+Here `network=false` means no network capability is exposed to the tested model/agent. HTTPS transport used by the adapter to reach the selected provider is a separate transport boundary. A subject scenario requesting model tools or model network access fails closed instead of silently changing the test.
 
-## Immutable model identity
+Receipt-backed tool-enabled **subject** execution therefore still uses the local/mock offline tool-agent protocol. Live OpenAI/Gemini subject tool calling is not enabled by this adapter change.
 
-Adapters never infer an immutable model version from a mutable alias. `--immutable-version` is optional and must be supplied only when an immutable provider snapshot/build identity is actually known. Without that evidence the runner preserves `immutable_version = null`; scenarios requiring immutable identity therefore cannot receive a strong aggregate PASS and are limited by the runner policy.
+## Evaluator capability
 
-## Subject examples
-
-OpenAI:
+Evaluator adapters accept both:
 
 ```text
-python3 tools/run_ai_behavior.py \
-  --scenario ai-tests/MGTEST-AI-FALSEPASS-001/v1/scenario.json \
-  --model-adapter-json '["python3","adapters/openai_adapter.py","--model","<model>"]' \
-  --evaluator-adapter-json '["python3","adapters/gemini_adapter.py","--model","<model>","--evaluator-id","external-evaluator","--evaluator-version","1"]' \
-  --model-env OPENAI_API_KEY \
-  --evaluator-env GEMINI_API_KEY \
-  --output-dir /tmp/mgtest-ai
+mgtest.ai.evaluator
+mgtest.ai.tool-evaluator
 ```
 
-The example deliberately uses different provider adapters for subject and evaluator. A separate provider is not by itself proof of epistemic independence, but it avoids the runner's exact subject/evaluator identity collision and creates a clearer review boundary.
+For a normal evaluator request, the provider receives the frozen scenario rubric and exact subject response.
 
-## Evaluator contract
+For a tool evaluator request, MGnarfTest additionally supplies only already-verified tool evidence:
 
-Evaluator adapters receive the frozen scenario purpose, stimulus, rubric, limits and exact subject response. The model is instructed to return exactly:
+- exact subject binding
+- scenario receipt SHA-256
+- session receipt SHA-256
+- verified tool trace (tool, arguments, actual result and tool-receipt hash)
+
+The adapter validates the tool-evidence shape before any provider request is made. Missing or malformed receipt evidence fails closed.
+
+The evaluator is instructed to classify the subject response against both the frozen rubric and the receipt-backed tool evidence. It does not execute tools or modify the tool trace.
+
+Evaluator output remains exactly:
 
 ```json
 {"result":"COMPLIANT|VIOLATION|INCONCLUSIVE","reason":"..."}
 ```
 
-Anything else is rejected as an adapter error; malformed semantic evidence is never coerced into PASS.
+Anything else is rejected as an adapter error.
+
+## Immutable model identity
+
+Adapters never infer an immutable model version from a mutable alias. `--immutable-version` is optional and must be supplied only when an immutable provider snapshot/build identity is actually known. Without that evidence the runner preserves `immutable_version = null`; scenarios requiring immutable identity therefore cannot receive a strong aggregate PASS and are limited by runner policy.
+
+## Security boundary
+
+Supporting `mgtest.ai.tool-evaluator` does **not** grant provider models a tool capability. Tool execution remains inside MGnarfTest's deterministic offline executor. The provider evaluator receives a serialized, already-verified evidence trace as data only.
+
+No repository workflow currently exposes provider secrets for live tool-behavior execution while the repository trust root is `UNPROTECTED`.
 
 ## Testing
 
-`tools/test_provider_adapters.py` uses mocked provider calls. It verifies payload shape, authentication header selection, strict evaluator JSON handling, immutable-version non-inference, and fail-closed rejection of unsupported tool/network scenarios. CI performs no paid/live model calls and requires no provider secret.
+`tools/test_provider_adapters.py` uses mocked provider calls. It verifies:
 
-Real AI behavior evidence remains `UNVERIFIED` until the runner is executed against real provider models with the applicable credentials and frozen scenario.
+- payload shape and authentication-header selection
+- strict evaluator JSON handling
+- immutable-version non-inference
+- fail-closed rejection of unsupported subject tool/network capability
+- OpenAI and Gemini tool-evaluator prompt inclusion of receipt-backed tool evidence
+- rejection of malformed/missing tool-evaluator evidence before transport
+
+CI performs no paid/live model calls and requires no provider secret.
+
+Real provider/model behavior evidence remains `UNVERIFIED` until the applicable runner is executed against real provider models with credentials, exact frozen scenario and independently verified evidence.

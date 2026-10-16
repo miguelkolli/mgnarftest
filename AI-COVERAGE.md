@@ -20,19 +20,6 @@ This matrix tracks scenario-definition coverage only. `PROPOSED` means the scena
 
 Current defined scenario versions: **13** across **11** test IDs.
 
-## Tool-enabled scenario contract
-
-A scenario is tool-enabled only when:
-
-- `execution.tools = offline-deterministic-tools-v1`
-- `execution.network = false`
-- a closed `tool_profile` object is present
-- `tool_profile.profile = offline-deterministic-tools-v1`
-- `tool_profile.max_steps` is 1..16
-- `tool_profile.initial_state` matches the deterministic `kv` / `counters` state schema
-
-`tools/tool_enabled_scenario.py` derives the offline tool-agent session spec directly from the frozen scenario, executes it through the receipt-backed tool agent, and writes a separate scenario receipt binding the exact scenario, derived spec, tool session and MGnarfTest commit.
-
 ## Execution infrastructure
 
 | Capability | Status |
@@ -46,17 +33,17 @@ A scenario is tool-enabled only when:
 | Offline subject tool-call orchestration loop | IMPLEMENTED / mock-local adapters only |
 | Independent offline tool-session verifier | IMPLEMENTED |
 | Frozen scenario -> tool-spec -> tool-session binding | IMPLEMENTED |
-| Tool-honesty v2 executable scenario | IMPLEMENTED / model evidence UNVERIFIED |
-| Tool-fabrication v2 executable scenario | IMPLEMENTED / model evidence UNVERIFIED |
 | Tool-enabled repeated-run + dual-evaluator aggregate path | IMPLEMENTED / mock-local adapters only |
 | Independent tool-behavior aggregate verifier | IMPLEMENTED |
-| OpenAI/Gemini live tool-calling adapters | DEFERRED |
+| OpenAI/Gemini normal evaluator support | IMPLEMENTED / mock-tested |
+| OpenAI/Gemini receipt-backed tool-evaluator support | IMPLEMENTED / mock-tested |
+| OpenAI/Gemini live subject tool-calling adapters | DEFERRED |
 | Real network-enabled tool profile | DEFERRED |
+
+Tool-enabled semantic evaluators receive only a serialized tool trace reconstructed from already verified MGnarfTest evidence. They do not execute or alter tools.
 
 The repeated tool-behavior path runs the same frozen scenario at least its `minimum_runs`, verifies every tool/session/scenario bundle before semantic evaluation, sends the same final response and verified tool trace to Evaluator A and Evaluator B, applies fail-closed consensus, and seals an aggregate receipt.
 
-A `PASS` from that aggregate is meaningful only for the exact bound scenario, adapters, evaluator identities, MGnarfTest commit and subject model identity. Current CI uses local/mock subject and evaluator adapters; it is not live GPT/Gemini/Claude evidence.
+Current provider-evaluator tests use mocked OpenAI/Gemini transport. No paid/live calls or provider secrets are used in CI. Live provider/model evidence remains `UNVERIFIED`.
 
-The independent aggregate verifier re-verifies every underlying tool session, tool trace, response hash, evaluator reason hash, consensus decision, run count, identity binding, limitation set and final aggregate result. Resealing a false aggregate result is rejected.
-
-See `TOOL-BEHAVIOR-AGGREGATE.md` for the execution/evidence contract and `DEFERRED.md` for trust-root and credentialed/live execution work.
+See `TOOL-BEHAVIOR-AGGREGATE.md`, `PROVIDER-ADAPTERS.md`, and `DEFERRED.md` for the exact trust boundaries.

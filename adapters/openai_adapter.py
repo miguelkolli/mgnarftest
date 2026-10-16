@@ -69,7 +69,7 @@ def process_request(request, *, model, immutable_version=None, max_output_tokens
             "network_configuration": execution["network"],
             "response_text": extract_text(response),
         }
-    if kind == "mgtest.ai.evaluator":
+    if kind in {"mgtest.ai.evaluator", "mgtest.ai.tool-evaluator"}:
         if not evaluator_id or not evaluator_version:
             raise AdapterError("evaluator id/version required")
         prompt = evaluator_prompt(request)

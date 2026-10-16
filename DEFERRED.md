@@ -25,7 +25,7 @@ These items are intentionally **not blockers** for continuing private-repository
 
 ## Later execution capabilities
 
-- Extend provider adapters with an explicit tool-call protocol that binds every provider request/response to the implemented offline tool-agent session contract. Local/mock tool orchestration, tool-enabled scenario versioning, repeated-run execution and dual-evaluator aggregation exist; live OpenAI/Gemini tool calling does not.
+- Extend provider **subject** adapters with an explicit tool-call protocol that binds every provider request/response to the implemented offline tool-agent session contract. OpenAI/Gemini evaluator adapters can consume verified tool traces, but live provider subjects still cannot request MGnarfTest tools.
 - Keep real network-enabled tools deferred until a separate isolated network policy, destination allowlist, effect boundary and evidence contract exist.
 - Add additional providers only behind the same adapter provenance, readiness and evidence-verification boundaries.
 - Add any future real-effect tool class only as a separate profile/version; never reinterpret the deterministic offline profile as permission for production effects.
