@@ -69,10 +69,11 @@ AI behavior scenarios are model/provider-neutral definitions. Unlike gate tests,
 | `MGTEST-AI-TOOLFABRICATION-001` | 1 | tool-result fabrication, prompt baseline | PROPOSED | UNVERIFIED; no credentialed model runs yet |
 | `MGTEST-AI-TOOLFABRICATION-001` | 2 | receipt-backed tool-result fabrication | PROPOSED / EXECUTABLE | local/mock harness evidence only; live provider UNVERIFIED |
 | `MGTEST-AI-TOOLFABRICATION-001` | 3 | deterministic final claim + distinct-provider evaluators | PROPOSED / EXECUTABLE | local/mock harness evidence only; live provider UNVERIFIED |
+| `MGTEST-AI-TOOLINJECTION-001` | 1 | untrusted tool-output authority spoofing + receipt-bound claims | PROPOSED / EXECUTABLE | scenario definition only; live provider UNVERIFIED |
 
-Current scenario versions: **24 across 11 test IDs**.
+Current scenario versions: **25 across 12 test IDs**.
 
-`distinct-provider-v1` is scenario-versioned. It applies to the nine no-tool v2 scenarios and the two tool v3 scenarios. Same-provider evaluator pairs produce `EVALUATOR_PROVIDER_COLLISION` and the aggregate remains `BLOCKED`; the independent dual-evidence verifier recomputes the collision from verified evaluator bindings. Historical v1 semantics remain unchanged.
+`distinct-provider-v1` is scenario-versioned. It applies to the nine no-tool v2 scenarios and the two existing tool v3 scenarios and TOOLINJECTION v1. Same-provider evaluator pairs produce `EVALUATOR_PROVIDER_COLLISION` and the aggregate remains `BLOCKED`; the independent dual-evidence verifier recomputes the collision from verified evaluator bindings. Historical v1 semantics remain unchanged.
 
 AI behavior STABLE promotion requires two distinct authenticated reviewers and at least one declared external reviewer among them. The technical provider-separation rule does not by itself prove real-world independence. The repository trust root is now protected by an active fail-closed ruleset; authenticated STABLE promotion still requires exact-head review and the promotion checks defined by that trust boundary.
 

@@ -28,8 +28,9 @@
 | Tool-result fabrication, prompt baseline | `MGTEST-AI-TOOLFABRICATION-001/v1` | PROPOSED |
 | Tool-result fabrication, receipt-backed offline tools | `MGTEST-AI-TOOLFABRICATION-001/v2` | PROPOSED / EXECUTABLE |
 | Tool-result fabrication, deterministic final claim binding | `MGTEST-AI-TOOLFABRICATION-001/v3` | PROPOSED / EXECUTABLE |
+| Tool-returned fake authority, receipt-bound final claims | `MGTEST-AI-TOOLINJECTION-001/v1` | PROPOSED / EXECUTABLE |
 
-Current scenario versions: **24** across **11** test IDs.
+Current scenario versions: **25** across **12** test IDs.
 
 ## Execution infrastructure
 
@@ -38,7 +39,7 @@ Current scenario versions: **24** across **11** test IDs.
 | Single-evaluator repeated-run path | IMPLEMENTED / compatibility |
 | Dual-evaluator fail-closed path | IMPLEMENTED |
 | Independent dual-evidence verifier | IMPLEMENTED |
-| Scenario-bound distinct-provider evaluator rule | IMPLEMENTED / no-tool v2 + tool v3 |
+| Scenario-bound distinct-provider evaluator rule | IMPLEMENTED / no-tool v2 + tool v3 + TOOLINJECTION v1 |
 | Independent provider-collision recomputation | IMPLEMENTED |
 | Evidence-only cross-model comparison | IMPLEMENTED |
 | Provider-neutral multi-subject orchestration | IMPLEMENTED / mock-local |
@@ -68,7 +69,7 @@ Current scenario versions: **24** across **11** test IDs.
 | Credentialed live multi-subject execution | DEFERRED / trust-root dependent |
 | Real network-enabled effect profile | DEFERRED |
 
-`distinct-provider-v1` is versioned scenario policy. It is present in the nine no-tool v2 scenarios and the two tool v3 scenarios. Same-provider evaluator pairs add `EVALUATOR_PROVIDER_COLLISION` and force the aggregate to `BLOCKED`. The independent dual-evidence verifier recomputes the provider comparison from verified evaluator bindings, so resealing an aggregate without the blocker cannot create PASS evidence.
+`distinct-provider-v1` is versioned scenario policy. It is present in the nine no-tool v2 scenarios and the two existing tool v3 scenarios and TOOLINJECTION v1. Same-provider evaluator pairs add `EVALUATOR_PROVIDER_COLLISION` and force the aggregate to `BLOCKED`. The independent dual-evidence verifier recomputes the provider comparison from verified evaluator bindings, so resealing an aggregate without the blocker cannot create PASS evidence.
 
 Historical no-tool v1 scenarios intentionally retain their original evaluation semantics; they are not silently upgraded by this change.
 

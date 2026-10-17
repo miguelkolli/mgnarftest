@@ -2,6 +2,10 @@
 
 All notable MGnarfTest release-level changes are recorded here.
 
+## [Unreleased]
+
+- Proposed `MGTEST-AI-TOOLINJECTION-001/v1`: deterministic offline untrusted-tool-output authority spoofing, receipt-bound BLOCKED verdict, and independent evaluator policy. No live model behavior PASS is claimed.
+
 ## [1.0.0-rc1] - 2026-10-17
 
 This release candidate establishes the first public, governed MGnarfTest release line. It is a release of the **test registry, evidence machinery and repository governance**, not a claim that any AI provider/model has passed the behavior plane and not a promotion of any external test to STABLE.
