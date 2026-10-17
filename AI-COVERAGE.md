@@ -47,6 +47,7 @@ Current scenario versions: **15** across **11** test IDs.
 | Deterministic receipt-result -> final-claim binding | IMPLEMENTED / v3 tool scenarios |
 | Distinct-provider evaluator requirement | IMPLEMENTED / v3 tool scenarios |
 | BLOCKED-status monotonicity regression | IMPLEMENTED / tool aggregate |
+| Repository-wide status-lattice verifier | IMPLEMENTED / CI |
 | OpenAI/Gemini normal evaluator support | IMPLEMENTED / mock-tested |
 | OpenAI/Gemini receipt-backed tool-evaluator support | IMPLEMENTED / mock-tested |
 | OpenAI/Gemini offline-tool subject translation bridge | IMPLEMENTED / mock-tested |
@@ -66,4 +67,4 @@ The same v3 scenarios require `distinct-provider-v1` evaluator independence. Two
 
 This is still protocol/evidence infrastructure. Live provider tool behavior remains `UNVERIFIED` until credentialed repeated execution is governed and independently verified.
 
-See `LIVE-TOOL-EVIDENCE.md`, `LIVE-TOOL-ACCEPTANCE.md`, `PROVIDER-ADAPTERS.md`, `TOOL-BEHAVIOR-AGGREGATE.md`, and `DEFERRED.md` for the trust boundaries.
+See `STATUS-LATTICE.md`, `LIVE-TOOL-EVIDENCE.md`, `LIVE-TOOL-ACCEPTANCE.md`, `PROVIDER-ADAPTERS.md`, `TOOL-BEHAVIOR-AGGREGATE.md`, and `DEFERRED.md` for the trust boundaries.

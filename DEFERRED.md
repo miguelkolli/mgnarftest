@@ -95,12 +95,14 @@ Until then, a behavior PASS is evidence only for the frozen tested boundary and 
 
 ## Status monotonicity
 
-The tool aggregate now has a regression that iterates every registered blocking limitation and proves that it cannot produce `PASS` from an otherwise compliant run set.
+Repository-wide status-lattice verifier v1 is implemented and CI-covered. It independently exercises the current single-evaluator aggregate, dual-evaluator aggregate, receipt-backed tool aggregate, cross-model comparison, live-readiness plan and STABLE-promotion trust-root guard. Degraded or blocking inputs are required to remain non-promoting; they may not become `PASS`, `READY`, `STRONG`, authenticated `ACCEPTED` or `STABLE` authority.
+
+See `STATUS-LATTICE.md` for the exact v1 coverage boundary.
 
 Still deferred:
 
-- one repository-wide status-lattice verifier spanning every future runner, comparator, readiness plan and promotion path;
-- machine-checking new status transitions automatically when new result states are added.
+- automatic discovery of every future status-bearing runner, comparator, readiness path, acceptance state and promotion mechanism;
+- machine-checking newly introduced result states/transitions without explicitly adding them to the verifier and CI.
 
 Any downstream component that receives a blocking state must fail closed; it must never reinterpret `BLOCKED` as `PASS`, `READY` or authenticated `ACCEPTED`.
 
