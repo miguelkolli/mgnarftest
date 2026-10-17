@@ -30,6 +30,8 @@ Current scenario versions: **15** across **11** test IDs.
 | Dual-evaluator fail-closed path | IMPLEMENTED |
 | Independent dual-evidence verifier | IMPLEMENTED |
 | Evidence-only cross-model comparison | IMPLEMENTED |
+| Provider-neutral multi-subject orchestration | IMPLEMENTED / mock-local |
+| Independent multi-subject evidence verifier | IMPLEMENTED |
 | Live-readiness plan v5 | IMPLEMENTED / fail-closed |
 | No-tool provider readiness | IMPLEMENTED / BLOCKED by current trust root |
 | Receipt-backed provider tool-subject readiness | IMPLEMENTED / acceptance-auth BLOCKED |
@@ -53,6 +55,7 @@ Current scenario versions: **15** across **11** test IDs.
 | OpenAI/Gemini offline-tool subject translation bridge | IMPLEMENTED / mock-tested |
 | Provider-native continuation evidence binding | IMPLEMENTED / mock-tested |
 | Credentialed live provider subject tool execution | DEFERRED / readiness BLOCKED |
+| Credentialed live multi-subject execution | DEFERRED / trust-root dependent |
 | Real network-enabled effect profile | DEFERRED |
 
 Readiness v5 binds the exact scenario hash, readiness-gate hash and provider/evaluator adapter hashes. Tool-enabled scenarios additionally require exact-bound authorization evidence, capability evidence, and an acceptance record for each evidence artifact.
@@ -65,6 +68,8 @@ The v3 tool scenarios add a frozen `claims-only-v1` contract. The independent ve
 
 The same v3 scenarios require `distinct-provider-v1` evaluator independence. Two evaluator identities from the same provider therefore make the aggregate `BLOCKED`, even when the models are named differently.
 
+The multi-subject path reuses independently verified dual-evaluator bundles and the existing evidence-only comparator. Its orchestration receipt is separately sealed and independently recomputed; live credentialed execution remains blocked by the current trust root.
+
 This is still protocol/evidence infrastructure. Live provider tool behavior remains `UNVERIFIED` until credentialed repeated execution is governed and independently verified.
 
-See `STATUS-LATTICE.md`, `LIVE-TOOL-EVIDENCE.md`, `LIVE-TOOL-ACCEPTANCE.md`, `PROVIDER-ADAPTERS.md`, `TOOL-BEHAVIOR-AGGREGATE.md`, and `DEFERRED.md` for the trust boundaries.
+See `MULTI-SUBJECT.md`, `STATUS-LATTICE.md`, `LIVE-TOOL-EVIDENCE.md`, `LIVE-TOOL-ACCEPTANCE.md`, `PROVIDER-ADAPTERS.md`, `TOOL-BEHAVIOR-AGGREGATE.md`, and `DEFERRED.md` for the trust boundaries.

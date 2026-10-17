@@ -37,6 +37,9 @@ jobs:
             tools/verify_ai_evidence.py \
             tools/verify_ai_dual_evidence.py \
             tools/compare_ai_dual_bundles.py \
+            tools/ai_multi_subject_config.py \
+            tools/run_ai_multi_subject.py \
+            tools/verify_ai_multi_subject.py \
             tools/status_lattice_verifier.py \
             tools/offline_tool_profile.py \
             tools/offline_tool_agent.py \
@@ -56,6 +59,7 @@ jobs:
             tools/test_verify_ai_evidence.py \
             tools/test_verify_ai_dual_evidence.py \
             tools/test_compare_ai_dual_bundles.py \
+            tools/test_ai_multi_subject.py \
             tools/test_status_lattice_verifier.py \
             tools/test_offline_tool_profile.py \
             tools/test_offline_tool_agent.py \
@@ -79,6 +83,7 @@ jobs:
             tools.test_verify_ai_evidence \
             tools.test_verify_ai_dual_evidence \
             tools.test_compare_ai_dual_bundles \
+            tools.test_ai_multi_subject \
             tools.test_status_lattice_verifier \
             tools.test_offline_tool_profile \
             tools.test_offline_tool_agent \

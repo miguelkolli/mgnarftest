@@ -32,7 +32,7 @@ Before credentialed provider-tool execution can become `READY`:
 - required provider secret **names** may be planned, but secret values must not enter readiness evidence;
 - immutable provider model snapshot/version/build identifiers must be captured when exposed; otherwise record the limitation;
 - real repeated model executions must be independently verified before any live AI behavior claim;
-- credentialed multi-subject orchestration is still required for real cross-model runs.
+- provider-neutral multi-subject orchestration must remain bound to the same frozen scenario, evaluator pair and exact MGnarfTest commit; this contract is implemented and mock-tested, but credentialed runs remain deferred.
 
 ## Evidence acceptance authentication
 
