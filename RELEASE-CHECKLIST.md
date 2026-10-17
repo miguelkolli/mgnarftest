@@ -2,7 +2,18 @@
 
 Candidate: `v1.0.0-rc1`
 
-Status: **PREPARING — NOT RELEASED**
+Status: **RELEASED — GitHub prerelease published 2026-10-17**
+
+## Verified release readback
+
+- Immutable release tag: `v1.0.0-rc1`.
+- Exact tag target: `07beb66fe2be05963f5c8799afe2b9a5bdfbe750` (protected-`main` commit).
+- Post-merge registry validation: **PASS**, run `#241` (GitHub Actions run `39042323878`).
+- GitHub release: https://github.com/miguelkolli/mgnarftest/releases/tag/v1.0.0-rc1 — marked **prerelease**, not final.
+- All external gate tests remain **PROPOSED** unless separately promoted through STABLE.
+- Later commits on `main` do **not** alter the frozen RC1 tag or retroactively extend its test coverage.
+
+The checklist below records the **historical prerelease acceptance requirements**. It is not an instruction to move or republish the immutable RC1 tag.
 
 Preparation base commit: `0bccdd7079b229f5a5b9c889f452fa0542c17a72`
 

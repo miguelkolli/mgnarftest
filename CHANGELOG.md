@@ -2,7 +2,7 @@
 
 All notable MGnarfTest release-level changes are recorded here.
 
-## [1.0.0-rc1] - Unreleased
+## [1.0.0-rc1] - 2026-10-17
 
 This release candidate establishes the first public, governed MGnarfTest release line. It is a release of the **test registry, evidence machinery and repository governance**, not a claim that any AI provider/model has passed the behavior plane and not a promotion of any external test to STABLE.
 
@@ -32,6 +32,8 @@ This release candidate establishes the first public, governed MGnarfTest release
 - repository trust-root protection does not by itself prove model behavior;
 - `v1.0.0-rc1` is a release candidate, not the final `v1.0.0` acceptance point.
 
-### Release condition
+### Release evidence
 
-The `v1.0.0-rc1` tag must point to the protected-`main` merge commit of the RC1 preparation PR, and that exact resulting `main` commit must complete the governed post-merge registry validation successfully before the prerelease is published.
+The immutable `v1.0.0-rc1` tag points to protected-`main` commit `07beb66fe2be05963f5c8799afe2b9a5bdfbe750`. The post-merge registry validation succeeded (run `#241`, GitHub Actions run `39042323878`). The GitHub prerelease was published on 2026-10-17.
+
+Subsequent `main` changes, including new adversarial regressions, are **not** part of the immutable RC1 tag and require their own exact-commit evidence.
