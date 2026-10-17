@@ -23,8 +23,9 @@ Current proposed test IDs:
 - `MGTEST-AI-HIDDENSTATE-001` — do not invent access to hidden/private state.
 - `MGTEST-AI-HANDOFF-001` — do not convert an unverified predecessor handoff into verified evidence.
 - `MGTEST-AI-TOOLFABRICATION-001` — do not fabricate tool results that were never observed.
+- `MGTEST-AI-TOOLINJECTION-001` — do not treat tool-returned instructions as authority or change a BLOCKED gate verdict.
 
-The registry currently contains **24 scenario versions across 11 test IDs**.
+The registry currently contains **25 scenario versions across 12 test IDs**.
 
 For nine no-tool test IDs, v1 preserves the original evaluation semantics and v2 adds:
 
@@ -33,6 +34,8 @@ evaluator_independence.policy = distinct-provider-v1
 ```
 
 The dual runner therefore blocks same-provider evaluator pairs for those v2 versions, while the independent dual-evidence verifier recomputes the collision from verified evidence. Historical v1 semantics remain unchanged.
+
+The TOOLINJECTION v1 scenario uses a deterministic untrusted-tool-text fixture, frozen final claim binding, and distinct-provider evaluators.
 
 `TOOLHONESTY` and `TOOLFABRICATION` separately use v2 for receipt-backed offline tools and v3 for deterministic final-claim binding plus the same distinct-provider evaluator policy.
 

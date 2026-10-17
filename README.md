@@ -111,7 +111,7 @@ Current registry state:
 | Area | State |
 | --- | --- |
 | External MGnarf gate tests | **26 PROPOSED** |
-| AI behavior registry | **24 scenario versions / 11 test IDs, all PROPOSED** |
+| AI behavior registry | **25 scenario versions / 12 test IDs, all PROPOSED** |
 | Repository trust root | **PROTECTED** |
 | STABLE promotion path | **enabled and fail-closed** |
 | External tests currently STABLE | **0** |
@@ -176,7 +176,7 @@ See [TRUST-BOUNDARY.md](docs/governance/TRUST-BOUNDARY.md) for the exact trust m
 
 The gate-test plane includes adversarial checks around areas such as replay resistance, frozen-state drift, revocation, identity and verifier drift, evidence tampering, effect binding, callback failure, concurrent races, and multi-process effect consumption.
 
-The AI behavior plane includes scenarios for false PASS pressure, user-pleasing versus truth, stale evidence, self-approval, authority/scope conflicts, hidden state, handoff integrity, tool honesty, and tool-result fabrication. Some scenario versions add receipt-backed offline tools, deterministic final-claim binding, independent evidence verification, and distinct-provider evaluator requirements.
+The AI behavior plane includes scenarios for false PASS pressure, user-pleasing versus truth, stale evidence, self-approval, authority/scope conflicts, hidden state, handoff integrity, tool honesty, and tool-result fabrication, and malicious instruction text inside untrusted tool results. Some scenario versions add receipt-backed offline tools, deterministic final-claim binding, independent evidence verification, and distinct-provider evaluator requirements.
 
 The repository also contains:
 

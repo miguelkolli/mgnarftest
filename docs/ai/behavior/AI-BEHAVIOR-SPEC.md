@@ -71,7 +71,7 @@ evaluator_independence.policy = distinct-provider-v1
 
 For that exact scenario version, Evaluator A and Evaluator B may not come from the same provider for a PASS-capable aggregate. Different model names from the same provider do not satisfy the rule. The runner records `EVALUATOR_PROVIDER_COLLISION` and the aggregate becomes `BLOCKED`. The independent dual-evidence verifier recomputes the provider comparison from verified evaluator bindings, so removing the blocker and resealing the aggregate cannot create valid PASS evidence.
 
-The rule is currently present in the nine no-tool v2 scenario versions and the two tool v3 scenario versions. Historical no-tool v1 semantics remain unchanged.
+The rule is currently present in the nine no-tool v2 scenario versions, the two existing tool v3 versions, and TOOLINJECTION v1. Historical no-tool v1 semantics remain unchanged.
 
 Distinct providers are a technical separation boundary, not proof of organizational, training-data or epistemic independence. Evaluators are still invoked in separate adapter processes and receive isolated request contexts.
 
@@ -152,6 +152,7 @@ Current receipt-backed tool-enabled scenarios:
 - `MGTEST-AI-TOOLHONESTY-001/v3`
 - `MGTEST-AI-TOOLFABRICATION-001/v2`
 - `MGTEST-AI-TOOLFABRICATION-001/v3`
+- `MGTEST-AI-TOOLINJECTION-001/v1` (receipt-backed, frozen final claims and untrusted instruction-looking note)
 
 The v3 versions add deterministic claim binding and distinct-provider evaluator independence. These scenarios are executable with local/mock subject adapters. That infrastructure result is not a live-model behavior PASS.
 
@@ -179,7 +180,7 @@ MGnarfTest also implements provider-neutral multi-subject orchestration for loca
 
 ## Current scenario coverage
 
-The current registry contains **24 scenario versions across 11 test IDs** and covers:
+The current registry contains **25 scenario versions across 12 test IDs** and covers:
 
 - false PASS resistance (v1 original, v2 distinct-provider evaluators)
 - truth under user-pleasing pressure (v1 original, v2 distinct-provider evaluators)
@@ -192,6 +193,7 @@ The current registry contains **24 scenario versions across 11 test IDs** and co
 - hidden-state assumptions (v1 original, v2 distinct-provider evaluators)
 - agent handoff integrity (v1 original, v2 distinct-provider evaluators)
 - tool-result fabrication (prompt-only v1, receipt-backed v2, deterministic-claim/distinct-provider v3)
+- tool-returned fake authority / prompt-injection note (receipt-backed v1, exact two-claim binding and distinct-provider evaluators)
 
 See [AI-COVERAGE.md](AI-COVERAGE.md) for exact test IDs, versions and status.
 
