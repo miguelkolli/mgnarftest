@@ -22,7 +22,7 @@ These commands check manifests, AI scenarios, and **mocked promotion-policy atta
 
 **One concrete attack/control example:** [MGTEST-NARF-EVIDENCE-001/v1](tests/MGTEST-NARF-EVIDENCE-001/v1/test.py) checks that a tampered verifier receipt produces `BLOCKED / INVALID_EVIDENCE` and never reaches the protected effect, while an untampered control produces `PASS` and reaches the effect exactly once. These are frozen test expectations; an actual PASS requires executed evidence.
 
-**Want to submit a new adversarial test?** Follow the [external contributor quickstart](EXTERNAL-TEST-QUICKSTART.md) (fork → versioned test → PR). Proposed tests and CI PASS results are not automatically STABLE.
+**Want to submit a new adversarial test?** Follow the [external contributor quickstart](docs/contributing/EXTERNAL-TEST-QUICKSTART.md) (fork → versioned test → PR). Proposed tests and CI PASS results are not automatically STABLE.
 
 ## Start here
 
@@ -30,13 +30,13 @@ These commands check manifests, AI scenarios, and **mocked promotion-policy atta
 | --- | --- |
 | see the current registry state | [REGISTRY.md](REGISTRY.md) |
 | browse all technical documentation | [docs/README.md](docs/README.md) |
-| add an external MGnarf test | [EXTERNAL-TEST-QUICKSTART.md](EXTERNAL-TEST-QUICKSTART.md) |
+| add an external MGnarf test | [EXTERNAL-TEST-QUICKSTART.md](docs/contributing/EXTERNAL-TEST-QUICKSTART.md) |
 | understand AI behavior tests | [AI-BEHAVIOR-SPEC.md](docs/ai/behavior/AI-BEHAVIOR-SPEC.md) |
 | understand the repository trust boundary | [TRUST-BOUNDARY.md](docs/governance/TRUST-BOUNDARY.md) |
 | understand fail-closed status transitions | [STATUS-LATTICE.md](docs/governance/STATUS-LATTICE.md) |
 | see intentionally unresolved work | [DEFERRED.md](docs/governance/DEFERRED.md) |
-| contribute safely | [CONTRIBUTING.md](CONTRIBUTING.md) |
-| report a vulnerability | [SECURITY.md](SECURITY.md) |
+| contribute safely | [CONTRIBUTING.md](.github/CONTRIBUTING.md) |
+| report a vulnerability | [SECURITY.md](.github/SECURITY.md) |
 
 ## How MGnarf and MGnarfTest fit together
 
@@ -215,19 +215,19 @@ adapters/                  provider adapters and tool bridges
 tools/                     runners, validators and independent verifiers
 evidence/                  generated/bound execution evidence
 .github/workflows/         governed CI and promotion gates
-EXTERNAL-TEST-QUICKSTART.md first external-contribution walkthrough
+docs/contributing/EXTERNAL-TEST-QUICKSTART.md  external-contribution walkthrough
 REGISTRY.md                 registry status and evidence summary
 docs/ai/behavior/AI-BEHAVIOR-SPEC.md         AI behavior test contract
 docs/governance/TRUST-BOUNDARY.md           repository trust-root model
 docs/governance/STATUS-LATTICE.md           fail-closed status transition coverage
 docs/governance/DEFERRED.md                 intentionally unresolved / future work
-CONTRIBUTING.md             contribution rules
-SECURITY.md                 vulnerability reporting
+.github/CONTRIBUTING.md    contribution rules
+.github/SECURITY.md        vulnerability reporting
 ```
 
 ## Contributing external tests
 
-External tests are welcome. **First contribution? Start with [EXTERNAL-TEST-QUICKSTART.md](EXTERNAL-TEST-QUICKSTART.md) and copy [`tests/_template/`](tests/_template/).**
+External tests are welcome. **First contribution? Start with [EXTERNAL-TEST-QUICKSTART.md](docs/contributing/EXTERNAL-TEST-QUICKSTART.md) and copy [`tests/_template/`](tests/_template/).**
 
 The preferred model is:
 
@@ -239,13 +239,13 @@ The preferred model is:
 6. respond to review;
 7. the maintainer decides whether the proposal enters the official registry.
 
-Do not treat a pull request, CI PASS, or fork as automatic acceptance into the official STABLE set. See [CONTRIBUTING.md](CONTRIBUTING.md).
+Do not treat a pull request, CI PASS, or fork as automatic acceptance into the official STABLE set. See [CONTRIBUTING.md](.github/CONTRIBUTING.md).
 
 ## License and security
 
 MGnarfTest is licensed under the [Apache License 2.0](LICENSE). You may use, copy, modify, and redistribute the code under that license. That permission applies to your copies and forks; it does not grant write access to the official repository.
 
-For vulnerability reporting, see [SECURITY.md](SECURITY.md). Do not place credentials, private exploit details, or other secrets in a public issue.
+For vulnerability reporting, see [SECURITY.md](.github/SECURITY.md). Do not place credentials, private exploit details, or other secrets in a public issue.
 
 ## Core rule
 

@@ -1,8 +1,14 @@
 # MGnarfTest documentation
 
-Documentation is grouped by subject. Start with the [project README](../README.md) and the [external test quickstart](../EXTERNAL-TEST-QUICKSTART.md).
+Documentation is grouped by subject. Start with the [project README](../README.md) and the [external test quickstart](contributing/EXTERNAL-TEST-QUICKSTART.md).
 
-The GitHub-recognized and repository-contract entry points stay at the root: README, CONTRIBUTING, SECURITY, CHANGELOG, REGISTRY and EXTERNAL-TEST-QUICKSTART. The already-shared quickstart URL is preserved.
+Only the repository entry points `README.md`, `REGISTRY.md`, and `CHANGELOG.md` remain at the root. `REGISTRY.md` is a fixed path in the STABLE promotion verifier; `README.md` is the GitHub landing page. GitHub recognizes contribution and security policies from `.github/`. The quickstart has moved into the contributing documentation folder; previously shared direct links to its old path need updating.
+
+## Contributing and security
+
+- [External test quickstart](contributing/EXTERNAL-TEST-QUICKSTART.md)
+- [Contribution and review policy](../.github/CONTRIBUTING.md)
+- [Security policy and vulnerability reporting](../.github/SECURITY.md)
 
 ## AI behavior specifications
 
