@@ -13,7 +13,7 @@ MGnarfTest does **not** replace MGnarf's repository-owned tests. It adds an exte
 MGnarfTest now keeps two distinct test planes:
 
 ```text
-Gate tests       -> does MGnarf enforce the protected-effect contract?
+Gate tests        -> does MGnarf enforce the protected-effect contract?
 AI behavior tests -> does an AI/agent preserve truth, evidence, authority and scope under pressure?
 ```
 
@@ -67,7 +67,7 @@ The STABLE gate uses verifier code from the trusted base branch. It does **not**
 
 Repository-local execution, receipt and promotion controls are evidence-tested for the existing gate-test plane. GitHub branch metadata currently reports `main` as **unprotected**, so MGnarfTest deliberately blocks STABLE promotion and does not claim that the trusted base branch is tamper-proof.
 
-The new AI behavior plane starts as scenario/validator infrastructure only. No AI behavior execution result or STABLE claim exists yet.
+The AI behavior plane now includes deterministic offline tool execution, receipt verification, provider adapters, repeated dual-evaluator aggregation and readiness checks. These are harness/protocol results. No credentialed real-provider AI behavior PASS or STABLE claim exists yet.
 
 See [TRUST-BOUNDARY.md](TRUST-BOUNDARY.md) for the exact limitation and the requirements for a stronger STABLE trust claim.
 
@@ -75,7 +75,9 @@ See [TRUST-BOUNDARY.md](TRUST-BOUNDARY.md) for the exact limitation and the requ
 
 Twenty-six external MGnarf gate tests are currently `PROPOSED`: stage ordering, same-operation replay resistance, builder/verifier identity separation, post-PASS frozen-state drift, post-PASS revocation, authenticated verifier-evidence tampering, frozen effect-binding substitution, post-PASS authority availability fail-closed behavior, authenticated final-decision tampering, frozen-task substitution, verifier binding/result fail-closed behavior, verifier producer crash/partial-execution fail-closed behavior, frozen-contract tamper resistance, frozen evidence-coverage completeness, host inhibitor invalidation before effect execution, trusted state-probe availability fail-closed behavior, post-PASS identity-probe continuity, protected-effect callback failure/retry at-most-once consumption, transient state drift during verifier execution, revocation arriving during verifier execution, identity principal/trust-domain drift during verifier execution, inhibitor dominance when introduced during verifier execution, verifier-profile drift in the trusted identity view or host binding during verifier execution, concurrent same-contract protected-effect race resistance, concurrent race resistance when the sole winning callback crashes, and multi-process same-filesystem effect-consumption race resistance.
 
-Six AI behavior scenarios are also `PROPOSED`: false-PASS resistance, truth under user-pleasing pressure, stale-evidence recognition, self-approval/independence claims, tool-use honesty and unauthenticated authority-bypass pressure. These scenarios are currently `UNVERIFIED`; they have definitions and validation rules but no model-run evidence yet.
+The AI behavior registry contains **15 versioned scenarios across 11 test IDs**, all still `PROPOSED`: false-PASS resistance; truth under user-pleasing pressure; stale-evidence recognition; self-approval/independence claims; tool-use honesty; unauthenticated authority-bypass pressure; frozen-scope preservation; instruction-conflict handling; hidden-state assumptions; agent-handoff integrity; and tool-result fabrication. `TOOLHONESTY` and `TOOLFABRICATION` each preserve prompt-only v1, add receipt-backed offline-tool v2, and add deterministic final-claim / distinct-provider-evaluator v3 semantics.
+
+Tool-enabled v2/v3 scenarios are executable against local/mock subject adapters and their evidence machinery is CI-tested. Real provider/model behavior evidence remains `UNVERIFIED`, credentialed live provider tool execution remains `BLOCKED`, and no AI behavior test is `STABLE`.
 
 No external test is `STABLE` yet.
 
