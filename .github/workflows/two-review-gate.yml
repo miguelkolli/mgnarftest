@@ -34,9 +34,9 @@ jobs:
       - name: Enforce current repository trust-root authority
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: python3 tools/enforce_trust_root.py
+        run: python3 -m tools.enforce_trust_root
 
       - name: Verify STABLE promotion using trusted base code
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: python3 tools/verify_stable_promotion_pr.py
+        run: python3 -m tools.verify_stable_promotion_pr
