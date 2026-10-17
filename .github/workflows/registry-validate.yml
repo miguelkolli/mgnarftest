@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main, "bootstrap/**", "dev/**"]
+    branches: [main, "bootstrap/**", "dev/**", "feature/**"]
 
 permissions:
   contents: read
@@ -31,6 +31,10 @@ jobs:
         working-directory: mgnarftest
         run: python3 tools/validate_registry.py
 
+      - name: Validate AI behavior scenarios
+        working-directory: mgnarftest
+        run: python3 tools/validate_ai_behavior.py
+
       - name: Compile registry tools and external tests
         working-directory: mgnarftest
         run: |
@@ -38,6 +42,8 @@ jobs:
           python3 -m py_compile \
             tools/validate_registry.py \
             tools/test_validate_registry.py \
+            tools/validate_ai_behavior.py \
+            tools/test_validate_ai_behavior.py \
             tools/prepare_targets.py \
             tools/test_prepare_targets.py \
             tools/run_registry.py \
@@ -55,6 +61,7 @@ jobs:
         run: |
           python3 -m unittest -v \
             tools.test_validate_registry \
+            tools.test_validate_ai_behavior \
             tools.test_prepare_targets \
             tools.test_run_registry \
             tools.test_enforce_trust_root \

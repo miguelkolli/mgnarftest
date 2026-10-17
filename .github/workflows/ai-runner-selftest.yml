@@ -1,0 +1,98 @@
+name: MGnarfTest AI runner selftest
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: ["feature/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  ai-runner-selftest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact subject commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Verify exact checkout
+        run: test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+
+      - name: Validate AI scenarios
+        run: python3 tools/validate_ai_behavior.py
+
+      - name: Compile AI runners, evidence verifiers, comparison, tool layers, consensus, readiness and provider layers
+        run: |
+          python3 -m py_compile \
+            tools/validate_ai_behavior.py \
+            tools/ai_runner_protocol.py \
+            tools/ai_runner_engine.py \
+            tools/ai_dual_runner_engine.py \
+            tools/run_ai_behavior.py \
+            tools/run_ai_behavior_dual.py \
+            tools/verify_ai_evidence.py \
+            tools/verify_ai_dual_evidence.py \
+            tools/compare_ai_dual_bundles.py \
+            tools/ai_multi_subject_config.py \
+            tools/run_ai_multi_subject.py \
+            tools/verify_ai_multi_subject.py \
+            tools/status_lattice_verifier.py \
+            tools/offline_tool_profile.py \
+            tools/offline_tool_agent.py \
+            tools/verify_offline_tool_session.py \
+            tools/tool_enabled_scenario.py \
+            tools/tool_enabled_behavior_runner.py \
+            tools/run_tool_behavior_repeated.py \
+            tools/verify_tool_behavior_evidence.py \
+            tools/verify_tool_behavior_bundle.py \
+            tools/evaluator_consensus.py \
+            tools/live_tool_evidence.py \
+            tools/live_tool_evidence_acceptance.py \
+            tools/check_ai_live_readiness.py \
+            tools/test_validate_ai_behavior.py \
+            tools/test_run_ai_behavior.py \
+            tools/test_run_ai_behavior_dual.py \
+            tools/test_verify_ai_evidence.py \
+            tools/test_verify_ai_dual_evidence.py \
+            tools/test_compare_ai_dual_bundles.py \
+            tools/test_ai_multi_subject.py \
+            tools/test_status_lattice_verifier.py \
+            tools/test_offline_tool_profile.py \
+            tools/test_offline_tool_agent.py \
+            tools/test_tool_enabled_scenario.py \
+            tools/test_tool_enabled_behavior_runner.py \
+            tools/test_evaluator_consensus.py \
+            tools/test_ai_live_readiness.py \
+            tools/test_live_tool_evidence_acceptance.py \
+            tools/test_provider_adapters.py \
+            adapters/provider_common.py \
+            adapters/provider_tool_bridge.py \
+            adapters/openai_adapter.py \
+            adapters/gemini_adapter.py
+
+      - name: Run AI runners, evidence, comparison, tool layers, consensus and readiness unit tests
+        run: |
+          python3 -m unittest -v \
+            tools.test_validate_ai_behavior \
+            tools.test_run_ai_behavior \
+            tools.test_run_ai_behavior_dual \
+            tools.test_verify_ai_evidence \
+            tools.test_verify_ai_dual_evidence \
+            tools.test_compare_ai_dual_bundles \
+            tools.test_ai_multi_subject \
+            tools.test_status_lattice_verifier \
+            tools.test_offline_tool_profile \
+            tools.test_offline_tool_agent \
+            tools.test_tool_enabled_scenario \
+            tools.test_tool_enabled_behavior_runner \
+            tools.test_evaluator_consensus \
+            tools.test_ai_live_readiness \
+            tools.test_live_tool_evidence_acceptance \
+            tools.test_provider_adapters
+
+      - name: Verify repository-wide status lattice
+        run: python3 -m tools.status_lattice_verifier
