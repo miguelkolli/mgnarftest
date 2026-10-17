@@ -1,92 +1,191 @@
-# MGnarfTest (MGTest)
+# MGnarfTest
 
-MGnarfTest is MGnarf's external, versioned test registry and evidence layer.
+**External tests, evidence, and acceptance for MGnarf and AI behavior.**
 
-It answers a simple question:
+MGnarfTest is a public test registry designed to answer four questions:
 
-> Who defined this test, which exact target did it measure, what evidence was produced, and who accepted it into the stable test set?
+> **What was tested? Against which exact target? What evidence was produced? Who accepted it?**
 
-MGnarfTest does **not** replace MGnarf's repository-owned tests. It adds an external/versioned layer for adversarial tests, frozen target bindings, execution receipts, review state, and later STABLE promotion.
+The repository is intentionally separate from MGnarf itself. MGnarf is the frozen target; MGnarfTest defines external tests, runs them against exact versions, records evidence, and keeps test acceptance separate from test execution.
 
-## Two test planes
+## Why this exists
 
-MGnarfTest keeps two distinct test planes:
+A test result such as “PASS” is weak if nobody can prove which code was tested, which test definition ran, whether the evidence was changed later, or who accepted the test into the trusted set.
+
+MGnarfTest makes those boundaries explicit:
 
 ```text
-Gate tests        -> does MGnarf enforce the protected-effect contract?
-AI behavior tests -> does an AI/agent preserve truth, evidence, authority and scope under pressure?
+test definition
+    -> exact target identity
+    -> isolated execution
+    -> bound evidence / receipt
+    -> independent verification
+    -> review / acceptance
+    -> optional STABLE promotion
 ```
 
-Gate tests live under `tests/` and bind to exact MGnarf source commits. AI behavior scenarios live under `ai-tests/` and bind execution evidence to the actual provider/model identity, parameters, scenario hash and response hash. A mutable model alias is never treated as equivalent to an immutable source commit.
+A later change does not inherit an earlier PASS automatically. Missing authority or missing evidence fails closed.
 
-The two planes produce different claims. An AI behavior PASS does not prove the MGnarf gate, and a gate PASS does not prove model behavior.
+## Two independent test planes
 
-See [AI-BEHAVIOR-SPEC.md](AI-BEHAVIOR-SPEC.md).
+| Plane | Question | Location |
+| --- | --- | --- |
+| **MGnarf gate tests** | Does MGnarf enforce the protected-effect contract? | `tests/` |
+| **AI behavior tests** | Does an AI/agent preserve truth, evidence, authority and scope under pressure? | `ai-tests/` |
 
-## Current MGnarf baseline
+These planes make different claims. A gate-test PASS does **not** prove model behavior. An AI-behavior PASS does **not** prove the MGnarf gate.
 
-Published stable release: **MGnarf v1.70**
+See [AI-BEHAVIOR-SPEC.md](AI-BEHAVIOR-SPEC.md) for the AI test contract.
 
-Exact stable source commit:
+## Current baseline
+
+MGnarf gate tests currently target the published **MGnarf v1.70** source commit:
 
 ```text
 b811a13eab9cacd9f922b1f15097aa6bf700fc01
 ```
 
-A gate-test result must bind to an exact MGnarf commit. `main` alone is never sufficient evidence. MGnarf is only the frozen target here; this AI-plane work changes MGnarfTest, not MGnarf.
+A mutable branch name such as `main` is never sufficient target identity for evidence.
 
-## Development versus STABLE
+Current registry state:
+
+| Area | State |
+| --- | --- |
+| External MGnarf gate tests | **26 PROPOSED** |
+| AI behavior registry | **24 scenario versions / 11 test IDs, all PROPOSED** |
+| Repository trust root | **PROTECTED** |
+| STABLE promotion path | **enabled and fail-closed** |
+| External tests currently STABLE | **0** |
+| Credentialed real-provider AI behavior | **UNVERIFIED** |
+| Real network-enabled effects | **DEFERRED** |
+
+`PROTECTED` describes repository governance. It does **not** mean GPT, Gemini, Claude, or any other model has passed these tests.
+
+## How a test becomes official
+
+Normal development and STABLE acceptance are intentionally separate.
+
+### 1. Propose a test
+
+Anyone may fork this repository and propose a test through a pull request.
 
 ```text
-DEV / PROPOSED
-  -> executable/scenario test definition
-  -> frozen target identity
-  -> isolated execution
-  -> bound receipt
-  -> receipt verification
-  -> tamper rejection
-  -> merge PROPOSED test to main
-  -> successful main push evidence
-
-STABLE promotion (separate PR)
-  -> no test/workflow/tool changes
-  -> reference successful main-push receipt artifact
-  -> trusted base-branch promotion verifier
-  -> authenticated review A
-  -> authenticated review B
-  -> STABLE
+fork
+  -> add or version a test
+  -> pull request
+  -> required GitHub Actions checks
+  -> maintainer decision
+  -> merge as PROPOSED
 ```
 
-Two-review enforcement applies to STABLE promotion, not normal development. AI behavior STABLE promotion additionally requires at least one declared external reviewer among reviewer A/B.
+Public does **not** mean writable. The official `miguelkolli/mgnarftest` repository has a protected `main` branch. External contributors cannot directly change `main`.
 
-The STABLE gate uses verifier code from the trusted base branch. It does **not** execute the promotion PR's code. A PR-generated receipt cannot be used as STABLE evidence; the evidence must come from a successful `main` push run for the exact tested subject commit.
+The active ruleset requires pull requests, an up-to-date branch, resolved review conversations, and these required checks:
 
-## Trust-root status
+- `validate`
+- `ai-runner-selftest`
+- `history-secret-scan`
+- `trusted-promotion-gate`
 
-MGnarfTest uses the public GitHub repository's protected `main` branch as its repository trust root. The active `MGnarfTest main protection` ruleset has no bypass actors, restricts deletion and non-fast-forward pushes, requires pull requests and resolved conversations, requires branches to be up to date, and requires the repository's governed GitHub Actions checks.
+Force-pushes and branch deletion are restricted, and the ruleset has no bypass actors.
 
-Trust-policy changes and STABLE promotion requests are independently checked against the live GitHub ruleset from trusted base-branch code. Repository visibility alone is not authority, and ruleset drift fails closed.
+### 2. Produce evidence on `main`
 
-`PROTECTED` repository trust does **not** mean any AI provider/model behavior has passed. The AI behavior plane includes deterministic offline tool execution, receipt verification, provider adapters, repeated dual-evaluator aggregation, multi-subject orchestration, cross-model comparison and readiness checks. These are harness/protocol results. Real provider/model behavior remains `UNVERIFIED`; no credentialed live-provider behavior PASS claim exists.
+A PROPOSED gate test can run in the isolated registry harness. Evidence is bound to the exact MGnarfTest commit, exact target commit, test files, runtime contract, result, and receipt hash.
 
-See [TRUST-BOUNDARY.md](TRUST-BOUNDARY.md) for the exact enforcement boundary.
+PR-generated evidence is not sufficient for STABLE promotion. STABLE evidence must come from the governed `main` path.
 
-## Current status
+### 3. Promote separately to STABLE
 
-Twenty-six external MGnarf gate tests are currently `PROPOSED`: stage ordering, same-operation replay resistance, builder/verifier identity separation, post-PASS frozen-state drift, post-PASS revocation, authenticated verifier-evidence tampering, frozen effect-binding substitution, post-PASS authority availability fail-closed behavior, authenticated final-decision tampering, frozen-task substitution, verifier binding/result fail-closed behavior, verifier producer crash/partial-execution fail-closed behavior, frozen-contract tamper resistance, frozen evidence-coverage completeness, host inhibitor invalidation before effect execution, trusted state-probe availability fail-closed behavior, post-PASS identity-probe continuity, protected-effect callback failure/retry at-most-once consumption, transient state drift during verifier execution, revocation arriving during verifier execution, identity principal/trust-domain drift during verifier execution, inhibitor dominance when introduced during verifier execution, verifier-profile drift in the trusted identity view or host binding during verifier execution, concurrent same-contract protected-effect race resistance, concurrent race resistance when the sole winning callback crashes, and multi-process same-filesystem effect-consumption race resistance.
+STABLE promotion uses a dedicated PR with stricter rules:
 
-The AI behavior registry contains **24 versioned scenarios across 11 test IDs**, all still `PROPOSED`. Nine prompt/no-tool test IDs preserve their original v1 semantics and add v2 variants requiring `distinct-provider-v1` evaluator independence. `TOOLHONESTY` and `TOOLFABRICATION` preserve prompt-only v1, add receipt-backed offline-tool v2, and add deterministic final-claim / distinct-provider-evaluator v3 semantics.
+```text
+successful governed main evidence
+    -> dedicated promotion PR
+    -> trusted verifier from base main
+    -> live repository-ruleset verification
+    -> exact-head authenticated review A
+    -> exact-head authenticated review B
+    -> STABLE
+```
 
-For scenario versions that declare `distinct-provider-v1`, Evaluator A and Evaluator B coming from the same provider is a blocking condition. The dual runner records `EVALUATOR_PROVIDER_COLLISION`, and the independent dual-evidence verifier recomputes that condition rather than trusting the aggregate receipt. Historical v1 no-tool semantics are not silently reinterpreted.
+The promotion PR may not silently change the test semantics it is promoting. If the repository trust root drifts, required checks disappear, or evidence/review bindings do not match, promotion is blocked.
 
-Tool-enabled v2/v3 scenarios and the provider-neutral multi-subject path are executable against local/mock adapters and their evidence machinery is CI-tested. The repository trust-root blocker can be removed only by the protected live-policy gate; authenticated live-tool acceptance is still not implemented, credentialed live execution remains deferred, and real provider/model behavior remains `UNVERIFIED`.
+See [TRUST-BOUNDARY.md](TRUST-BOUNDARY.md) for the exact trust model.
 
-No external test is `STABLE` yet.
+## What MGnarfTest verifies
+
+The gate-test plane includes adversarial checks around areas such as replay resistance, frozen-state drift, revocation, identity and verifier drift, evidence tampering, effect binding, callback failure, concurrent races, and multi-process effect consumption.
+
+The AI behavior plane includes scenarios for false PASS pressure, user-pleasing versus truth, stale evidence, self-approval, authority/scope conflicts, hidden state, handoff integrity, tool honesty, and tool-result fabrication. Some scenario versions add receipt-backed offline tools, deterministic final-claim binding, independent evidence verification, and distinct-provider evaluator requirements.
+
+The repository also contains:
+
+- exact-SHA target preparation and isolated execution;
+- bound execution receipts and tamper rejection;
+- repository-wide fail-closed status-lattice verification;
+- dual-evaluator evidence verification;
+- cross-model and multi-subject comparison tooling;
+- OpenAI and Gemini provider adapters for the deferred/live evidence path;
+- full Git-history high-confidence credential scanning;
+- live GitHub ruleset verification before repository trust is used as authority.
+
+## What a PASS does not mean
+
+MGnarfTest deliberately keeps claims narrow.
+
+A PASS does not automatically prove that:
+
+- a different commit behaves the same way;
+- a mutable model alias is equivalent to the tested model/version;
+- a public benchmark reflects production behavior;
+- two providers are epistemically or organizationally independent;
+- structurally valid review JSON is authenticated human approval;
+- offline deterministic tool tests authorize real network effects;
+- repository protection alone proves AI behavior.
+
+When required evidence is unavailable, the correct result is `BLOCKED`, `UNVERIFIED`, `FAIL`, or a documented limitation — not an invented PASS.
+
+## Repository map
+
+```text
+tests/                     external MGnarf gate tests
+ai-tests/                  AI behavior scenarios
+adapters/                  provider adapters and tool bridges
+tools/                     runners, validators and independent verifiers
+evidence/                  generated/bound execution evidence
+.github/workflows/         governed CI and promotion gates
+REGISTRY.md                 registry status and evidence summary
+AI-BEHAVIOR-SPEC.md         AI behavior test contract
+TRUST-BOUNDARY.md           repository trust-root model
+STATUS-LATTICE.md           fail-closed status transition coverage
+DEFERRED.md                 intentionally unresolved / future work
+CONTRIBUTING.md             contribution rules
+SECURITY.md                 vulnerability reporting
+```
+
+## Contributing external tests
+
+External tests are welcome. The preferred model is:
+
+1. fork the repository;
+2. add a new test or a new version of an existing test;
+3. bind it to an exact target and frozen expected semantics;
+4. open a pull request;
+5. let the required checks run;
+6. respond to review;
+7. the maintainer decides whether the proposal enters the official registry.
+
+Do not treat a pull request, CI PASS, or fork as automatic acceptance into the official STABLE set. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License and security
 
-MGnarfTest is licensed under the [Apache License 2.0](LICENSE).
+MGnarfTest is licensed under the [Apache License 2.0](LICENSE). You may use, copy, modify, and redistribute the code under that license. That permission applies to your copies and forks; it does not grant write access to the official repository.
 
-For vulnerability reporting and disclosure guidance, see [SECURITY.md](SECURITY.md). Do not place credentials, private exploit details or other secrets in a public issue.
+For vulnerability reporting, see [SECURITY.md](SECURITY.md). Do not place credentials, private exploit details, or other secrets in a public issue.
 
-NARF principle: **no PASS without executed evidence; unavailable authority, state or identity is not permission; a stale or tampered decision is not authority; user preference does not alter truth or acceptance; an AI must not fabricate tool execution, independent review or evidence; verified work authorizes only the exact frozen task, verifier contract, identity context and authenticated frozen contract; missing, duplicate or unknown evidence cannot satisfy frozen coverage; a verifier crash cannot be reinterpreted as PASS evidence; transient state, revocation, identity or verifier-profile drift during verification overrides producer PASS and cannot be erased afterward; a trusted inhibitor dominates verifier PASS evidence whether introduced before, during or after verification; a failed effect callback does not restore consumed effect authority; concurrent sessions or local processes sharing one frozen contract and receipt filesystem cannot multiply local effect authority, even when the sole winning callback crashes; no STABLE test without frozen identity, target, receipt, review evidence and an enforceable repository trust root.**
+## Core rule
+
+> **No PASS without executed evidence. No STABLE without frozen identity, exact target, verified evidence, authenticated review, and an enforceable repository trust root.**
+
+That rule is the point of MGnarfTest.
