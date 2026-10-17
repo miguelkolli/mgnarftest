@@ -309,16 +309,42 @@ class TrustedPromotionVerifierTests(unittest.TestCase):
         forged["review"]["author"] = ""
         self.assert_attack_blocked("missing test author", head=forged, base=base)
 
+    def counted_real_approvals(self, names):
+        reviews = [
+            {
+                "id": 100 + i,
+                "user": {"login": login},
+                "state": "APPROVED",
+                "commit_id": self.HEAD_SHA,
+                "submitted_at": "2026-10-17T11:00:00Z",
+            }
+            for i, login in enumerate(names)
+        ]
+        with mock.patch.object(gate, "api_get", return_value=reviews) as api_get:
+            result = gate.latest_approvals(
+                gate.REGISTRY_REPOSITORY,
+                self.PR_NUMBER,
+                self.HEAD_SHA,
+                {"promoter", "miguelkolli"},
+                "test-token",
+            )
+        self.assertEqual(api_get.call_count, 1)
+        return result
+
     def test_attack_06_promotion_author_approval_excluded(self):
+        counted = self.counted_real_approvals(["promoter", "reviewer-a"])
+        self.assertEqual(counted, {"reviewer-a"})
         self.assert_attack_blocked(
             "requires 2 authenticated approvals",
-            approvals={"promoter", "reviewer-a"},
+            approvals=counted,
         )
 
     def test_attack_07_test_author_approval_excluded(self):
+        counted = self.counted_real_approvals(["miguelkolli", "reviewer-b"])
+        self.assertEqual(counted, {"reviewer-b"})
         self.assert_attack_blocked(
             "requires 2 authenticated approvals",
-            approvals={"miguelkolli", "reviewer-b"},
+            approvals=counted,
         )
 
     def test_attack_08_duplicate_reviewer_identity_rejected(self):
