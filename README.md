@@ -1,12 +1,52 @@
 # MGnarfTest
 
-**External tests, evidence, and acceptance for MGnarf and AI behavior.**
+**Evidence first. Acceptance separately.**
 
-MGnarfTest is a public test registry designed to answer four questions:
+MGnarfTest is the external test and evidence registry for [MGnarf](https://github.com/miguelkolli/mgnarf) and for AI behavior tests around truth, evidence, authority, scope, and tool use.
 
-> **What was tested? Against which exact target? What evidence was produced? Who accepted it?**
+MGnarf and MGnarfTest have different jobs: **MGnarf is the fail-closed acceptance gate; MGnarfTest is the independent test registry around it.** MGnarfTest binds tests and evidence to exact targets, keeps test execution separate from acceptance, and fails closed when identity, evidence, authority, or repository trust is missing.
 
-The repository is intentionally separate from MGnarf itself. MGnarf is the frozen target; MGnarfTest defines external tests, runs them against exact versions, records evidence, and keeps test acceptance separate from test execution.
+## Start here
+
+| I want to... | Read |
+| --- | --- |
+| see the current registry state | [REGISTRY.md](REGISTRY.md) |
+| add an external MGnarf test | [EXTERNAL-TEST-QUICKSTART.md](EXTERNAL-TEST-QUICKSTART.md) |
+| understand AI behavior tests | [AI-BEHAVIOR-SPEC.md](AI-BEHAVIOR-SPEC.md) |
+| understand the repository trust boundary | [TRUST-BOUNDARY.md](TRUST-BOUNDARY.md) |
+| understand fail-closed status transitions | [STATUS-LATTICE.md](STATUS-LATTICE.md) |
+| see intentionally unresolved work | [DEFERRED.md](DEFERRED.md) |
+| contribute safely | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| report a vulnerability | [SECURITY.md](SECURITY.md) |
+
+## How MGnarf and MGnarfTest fit together
+
+```text
+AI / automation
+      |
+      v
+produces candidate
+      |
+      v
+verification / tests
+      |
+      v
+    MGNARF
+      |
+      v
+real effect
+
+MGnarfTest
+      |
+      +--> external MGnarf gate tests
+      +--> AI behavior tests
+      +--> exact target identity
+      +--> bound evidence
+      +--> independent verification
+      +--> review / acceptance
+```
+
+MGnarfTest is intentionally outside the MGnarf implementation. A test result is not inherited by a later commit, a mutable branch name is not a frozen target, and a CI PASS is not the same thing as acceptance into the STABLE set.
 
 ## Why this exists
 
