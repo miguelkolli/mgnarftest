@@ -199,11 +199,22 @@ class LiveReadinessTests(unittest.TestCase):
         cap_record.write_text(json.dumps(make("capability", cap_path), sort_keys=True), encoding="utf-8")
         return auth_record, cap_record
 
-    def test_current_trust_root_blocks(self):
+    def test_current_trust_root_matches_activation_policy(self):
         plan = self.plan(self.scenario())
         self.assertEqual(plan["schema_version"], 5)
-        self.assertEqual(plan["status"], "BLOCKED")
+        self.assertEqual(plan["status"], "READY")
         self.assertEqual(plan["execution_mode"], "dual-evaluator-v2")
+        self.assertEqual(plan["blockers"], [])
+        self.assertEqual(plan["trust_root"]["status"], "PROTECTED")
+        self.assertTrue(plan["trust_root"]["stable_promotion_enabled"])
+
+    def test_unprotected_trust_root_blocks(self):
+        plan = self.plan(
+            self.scenario(),
+            trust_root_status="UNPROTECTED",
+            stable_promotion_enabled=False,
+        )
+        self.assertEqual(plan["status"], "BLOCKED")
         self.assertIn("REPOSITORY_TRUST_ROOT_NOT_ENFORCED", plan["blockers"])
         self.assertIn("TRUST_ROOT_STATUS_UNPROTECTED", plan["blockers"])
 

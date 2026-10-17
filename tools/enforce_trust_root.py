@@ -11,8 +11,8 @@ from tools.verify_stable_promotion_pr import (
     json_repo_file,
 )
 
-TRUST_ROOT_STATUS = "UNPROTECTED"
-STABLE_PROMOTION_ENABLED = False
+TRUST_ROOT_STATUS = "PROTECTED"
+STABLE_PROMOTION_ENABLED = True
 
 TRUST_ROOT_RULESET_NAME = "MGnarfTest main protection"
 TRUST_ROOT_BRANCH = "main"

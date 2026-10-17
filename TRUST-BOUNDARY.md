@@ -4,7 +4,7 @@ This document separates controls that MGnarfTest verifies inside the repository 
 
 ## Repository-local controls
 
-The current development/evidence pipeline verifies, fail-closed:
+The development/evidence pipeline verifies, fail-closed:
 
 - exact MGnarf target commit identity per runnable manifest;
 - isolated no-network, read-only, non-root gate-test execution;
@@ -16,50 +16,13 @@ The current development/evidence pipeline verifies, fail-closed:
 - exact-head authenticated reviewer state for STABLE promotion;
 - STABLE manifest immutability through the normal promotion path.
 
-These controls still depend on the GitHub `main` branch and its policy being an enforceable authority.
+## GitHub trust root
 
-## GitHub trust-root RECON — 2026-10-17
+The repository is public and `main` is protected by the repository ruleset `MGnarfTest main protection` (observed ruleset id `25304585`). MGnarfTest does not infer authority from visibility alone.
 
-The repository is public and GitHub currently reports `main` as `protected: true`.
-
-Ruleset `MGnarfTest main protection` (observed ruleset id `25304585`) is active and targets the default branch. The observed configuration includes:
-
-- no bypass actors;
-- branch deletion restriction;
-- non-fast-forward / force-push restriction;
-- pull requests required before merge;
-- conversation resolution required;
-- strict/up-to-date required status checks;
-- required GitHub Actions checks `validate`, `ai-runner-selftest`, and `history-secret-scan`.
-
-This is materially stronger than the former private/unprotected state, but it is not yet sufficient for STABLE promotion authority.
-
-## Remaining trust-root gaps
-
-The trusted STABLE verifier runs as job `trusted-promotion-gate` from `.github/workflows/two-review-gate.yml` using `pull_request_target` and the exact base SHA. It requires two authenticated exact-head approvals for STABLE promotion.
-
-Two conditions still have to be completed in order:
-
-1. the trusted workflow launcher on `main` must execute the Python package modules correctly; and
-2. after that trusted-base job is observed PASS on a normal non-STABLE PR, `trusted-promotion-gate` must be added to the ruleset's required status checks.
-
-RECON of run `39039267813` found that the previous launcher used `python3 tools/enforce_trust_root.py`, which failed before policy evaluation with `ModuleNotFoundError: No module named 'tools'`. The trusted workflow is therefore changed to module execution:
+The trusted base-branch verifier requires the live ruleset to remain active and to enforce:
 
 ```text
-python3 -m tools.enforce_trust_root
-python3 -m tools.verify_stable_promotion_pr
-```
-
-Until this launcher fix is merged to `main` and a subsequent trusted-base run succeeds, making `trusted-promotion-gate` merge-required would risk blocking all pull requests rather than strengthening the trust root.
-
-## Live ruleset verification
-
-`tools/enforce_trust_root.py` contains a live GitHub ruleset verifier. For a STABLE request or any change to the trusted policy code itself, it requires all of the following before repository policy can be considered `PROTECTED`:
-
-```text
-main protected = true
-ruleset name = MGnarfTest main protection
-ruleset enforcement = active
 target = default branch
 branch exclusions = none
 bypass actors = none
@@ -76,44 +39,31 @@ required GitHub Actions checks:
   trusted-promotion-gate
 ```
 
-The verifier binds the required check source to the GitHub Actions integration id observed for the repository policy. Missing or weakened rules fail closed.
+The required check source is bound to the GitHub Actions integration id observed for this repository policy. Missing or weakened rules fail closed.
 
-A normal development PR that does not request STABLE and does not change the trusted policy code does not need the live ruleset lookup. A PR that changes `tools/enforce_trust_root.py` or `.github/workflows/two-review-gate.yml` must pass the live ruleset verification from trusted base code before it can be treated as an authorized trust-policy change.
+A normal development PR that does not request STABLE and does not change trusted policy code may proceed through the normal required checks. A PR that changes `tools/enforce_trust_root.py` or `.github/workflows/two-review-gate.yml` must additionally pass live ruleset verification from trusted base code. A STABLE request must pass the same live verification and the separate evidence/review promotion verifier.
 
-Unit regressions explicitly reject at least:
+## Activation authority
 
-- an unprotected `main` branch;
-- a missing `trusted-promotion-gate` requirement;
-- any configured bypass actor;
-- a non-strict status-check policy;
-- live ruleset drift even if repository-local constants were hypothetically enabled;
-- trust-policy changes while the live ruleset is incomplete.
-
-## Machine-enforced current state
-
-The repository-local activation constants intentionally remain:
+Repository policy is configured as:
 
 ```text
-TRUST_ROOT_STATUS = UNPROTECTED
-STABLE_PROMOTION_ENABLED = false
+TRUST_ROOT_STATUS = PROTECTED
+STABLE_PROMOTION_ENABLED = true
 ```
 
-This is deliberate. The live validator and trusted launcher fix are being added before policy activation, so a partially configured trust root cannot become STABLE authority by documentation or assumption.
+These constants are not self-authenticating. A change to them is itself a trust-policy change, so the trusted base workflow checks the live four-check ruleset before GitHub can merge the activation PR. If the ruleset later drifts, future STABLE requests and future trust-policy changes fail closed even though the constants still say `PROTECTED`.
 
-Normal PROPOSED/DEV pull requests remain allowed. A STABLE transition remains BLOCKED.
+The activation claim is limited to repository governance. It does not prove any AI provider/model behavior and does not authenticate the still-deferred live-tool evidence-acceptance records.
 
-## Activation sequence
+## STABLE promotion boundary
 
-Before changing the constants above:
+A STABLE promotion is a separate PR. The trusted workflow checks out the exact base SHA rather than the promotion PR's code. The promotion verifier requires successful main-push evidence for the exact subject commit plus two authenticated exact-head approvals excluding the test author and PR author. AI behavior STABLE additionally requires the declared external-review boundary.
 
-1. merge the live ruleset verifier and trusted module-launcher fix through the current protected PR path with `validate`, `ai-runner-selftest`, and `history-secret-scan` passing;
-2. open the separate trust-root activation PR against the updated `main`; the fixed trusted-base job must execute and is expected to remain BLOCKED until the ruleset is complete;
-3. add `trusted-promotion-gate` as a required GitHub Actions status check in the active `MGnarfTest main protection` ruleset;
-4. rerun or retrigger the activation PR's trusted gate and require PASS, proving the four-check live policy from trusted base code;
-5. confirm the ruleset still has no bypass actors, targets the default branch, and contains all four required checks;
-6. only then merge the activation change that sets repository policy to `PROTECTED` and enables STABLE promotion;
-7. rerun trusted control-plane tests, main-push evidence, and status-lattice regressions on the exact activation commit.
+No external test is automatically promoted by repository activation. At activation time, all existing external tests remain `PROPOSED` until an independent STABLE promotion satisfies the full promotion contract.
 
-No external test is currently `STABLE`.
+## Residual trust assumptions
+
+GitHub remains the hosting and identity authority for branch rules, check identities and authenticated reviews. Required status checks are bound to check context plus GitHub Actions integration; they are not a cryptographic identity for the workflow file itself. The trusted `pull_request_target` job reduces untrusted-head influence by checking out exact trusted base code, but repository-owner control of GitHub settings remains an ultimate administrative authority.
 
 NARF rule: configuration that is missing, stale, bypassable, broken at launch, or not merge-enforced is not authority.
