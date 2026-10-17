@@ -84,4 +84,4 @@ The multi-subject path reuses independently verified dual-evaluator bundles and 
 
 This is still protocol/evidence infrastructure. Live provider behavior remains `UNVERIFIED` until credentialed repeated execution is governed and independently verified.
 
-See `MULTI-SUBJECT.md`, `STATUS-LATTICE.md`, `LIVE-TOOL-EVIDENCE.md`, `LIVE-TOOL-ACCEPTANCE.md`, `PROVIDER-ADAPTERS.md`, `TOOL-BEHAVIOR-AGGREGATE.md`, and `DEFERRED.md` for the trust boundaries.
+See [MULTI-SUBJECT.md](../execution/MULTI-SUBJECT.md), [STATUS-LATTICE.md](../../governance/STATUS-LATTICE.md), [LIVE-TOOL-EVIDENCE.md](../evidence/LIVE-TOOL-EVIDENCE.md), [LIVE-TOOL-ACCEPTANCE.md](../evidence/LIVE-TOOL-ACCEPTANCE.md), [PROVIDER-ADAPTERS.md](../execution/PROVIDER-ADAPTERS.md), [TOOL-BEHAVIOR-AGGREGATE.md](../evidence/TOOL-BEHAVIOR-AGGREGATE.md), and [DEFERRED.md](../../governance/DEFERRED.md) for the trust boundaries.

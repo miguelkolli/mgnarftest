@@ -40,7 +40,7 @@ All current scenarios start as `PROPOSED` and real provider/model execution evid
 
 See:
 
-- `AI-BEHAVIOR-SPEC.md` for model binding, repeated-run requirements, evaluator independence, evaluation language and external-review rules.
-- `AI-COVERAGE.md` for the explicit coverage matrix.
-- `MULTI-SUBJECT.md` for provider-neutral multi-subject orchestration.
-- `DEFERRED.md` for trust-root and credentialed live-provider work that remains intentionally postponed during private-repository development.
+- [AI-BEHAVIOR-SPEC.md](../docs/ai/behavior/AI-BEHAVIOR-SPEC.md) for model binding, repeated-run requirements, evaluator independence, evaluation language and external-review rules.
+- [AI-COVERAGE.md](../docs/ai/behavior/AI-COVERAGE.md) for the explicit coverage matrix.
+- [MULTI-SUBJECT.md](../docs/ai/execution/MULTI-SUBJECT.md) for provider-neutral multi-subject orchestration.
+- [DEFERRED.md](../docs/governance/DEFERRED.md) for trust-root and credentialed live-provider work that remains intentionally not yet authorized for production execution.

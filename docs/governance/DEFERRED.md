@@ -97,7 +97,7 @@ Until then, a behavior PASS is evidence only for the frozen tested boundary and 
 
 Repository-wide status-lattice verifier v2 is implemented and CI-covered. It independently exercises the current single-evaluator aggregate, dual-evaluator aggregate, receipt-backed tool aggregate, cross-model comparison, evidence acceptance lifecycle, live-readiness plan and STABLE-promotion trust-root guard. Degraded, weaker or unauthenticated inputs are required to remain non-promoting; they may not become `PASS`, `READY`, `STRONG`, authenticated `ACCEPTED` or `STABLE` authority.
 
-See `STATUS-LATTICE.md` for the exact v2 coverage boundary.
+See [STATUS-LATTICE.md](STATUS-LATTICE.md) for the exact v2 coverage boundary.
 
 Still deferred:
 

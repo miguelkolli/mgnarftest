@@ -29,11 +29,12 @@ These commands check manifests, AI scenarios, and **mocked promotion-policy atta
 | I want to... | Read |
 | --- | --- |
 | see the current registry state | [REGISTRY.md](REGISTRY.md) |
+| browse all technical documentation | [docs/README.md](docs/README.md) |
 | add an external MGnarf test | [EXTERNAL-TEST-QUICKSTART.md](EXTERNAL-TEST-QUICKSTART.md) |
-| understand AI behavior tests | [AI-BEHAVIOR-SPEC.md](AI-BEHAVIOR-SPEC.md) |
-| understand the repository trust boundary | [TRUST-BOUNDARY.md](TRUST-BOUNDARY.md) |
-| understand fail-closed status transitions | [STATUS-LATTICE.md](STATUS-LATTICE.md) |
-| see intentionally unresolved work | [DEFERRED.md](DEFERRED.md) |
+| understand AI behavior tests | [AI-BEHAVIOR-SPEC.md](docs/ai/behavior/AI-BEHAVIOR-SPEC.md) |
+| understand the repository trust boundary | [TRUST-BOUNDARY.md](docs/governance/TRUST-BOUNDARY.md) |
+| understand fail-closed status transitions | [STATUS-LATTICE.md](docs/governance/STATUS-LATTICE.md) |
+| see intentionally unresolved work | [DEFERRED.md](docs/governance/DEFERRED.md) |
 | contribute safely | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | report a vulnerability | [SECURITY.md](SECURITY.md) |
 
@@ -93,7 +94,7 @@ A later change does not inherit an earlier PASS automatically. Missing authority
 
 These planes make different claims. A gate-test PASS does **not** prove model behavior. An AI-behavior PASS does **not** prove the MGnarf gate.
 
-See [AI-BEHAVIOR-SPEC.md](AI-BEHAVIOR-SPEC.md) for the AI test contract.
+See [AI-BEHAVIOR-SPEC.md](docs/ai/behavior/AI-BEHAVIOR-SPEC.md) for the AI test contract.
 
 ## Current baseline
 
@@ -169,7 +170,7 @@ successful governed main evidence
 
 The promotion PR may not silently change the test semantics it is promoting. If the repository trust root drifts, required checks disappear, or evidence/review bindings do not match, promotion is blocked.
 
-See [TRUST-BOUNDARY.md](TRUST-BOUNDARY.md) for the exact trust model.
+See [TRUST-BOUNDARY.md](docs/governance/TRUST-BOUNDARY.md) for the exact trust model.
 
 ## What MGnarfTest verifies
 
@@ -216,10 +217,10 @@ evidence/                  generated/bound execution evidence
 .github/workflows/         governed CI and promotion gates
 EXTERNAL-TEST-QUICKSTART.md first external-contribution walkthrough
 REGISTRY.md                 registry status and evidence summary
-AI-BEHAVIOR-SPEC.md         AI behavior test contract
-TRUST-BOUNDARY.md           repository trust-root model
-STATUS-LATTICE.md           fail-closed status transition coverage
-DEFERRED.md                 intentionally unresolved / future work
+docs/ai/behavior/AI-BEHAVIOR-SPEC.md         AI behavior test contract
+docs/governance/TRUST-BOUNDARY.md           repository trust-root model
+docs/governance/STATUS-LATTICE.md           fail-closed status transition coverage
+docs/governance/DEFERRED.md                 intentionally unresolved / future work
 CONTRIBUTING.md             contribution rules
 SECURITY.md                 vulnerability reporting
 ```
