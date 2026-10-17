@@ -90,4 +90,4 @@ jobs:
             tools.test_provider_adapters
 
       - name: Verify repository-wide status lattice
-        run: python3 tools/status_lattice_verifier.py
+        run: python3 -m tools.status_lattice_verifier
