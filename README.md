@@ -150,11 +150,13 @@ When required evidence is unavailable, the correct result is `BLOCKED`, `UNVERIF
 
 ```text
 tests/                     external MGnarf gate tests
+tests/_template/           copyable external gate-test starter
 ai-tests/                  AI behavior scenarios
 adapters/                  provider adapters and tool bridges
 tools/                     runners, validators and independent verifiers
 evidence/                  generated/bound execution evidence
 .github/workflows/         governed CI and promotion gates
+EXTERNAL-TEST-QUICKSTART.md first external-contribution walkthrough
 REGISTRY.md                 registry status and evidence summary
 AI-BEHAVIOR-SPEC.md         AI behavior test contract
 TRUST-BOUNDARY.md           repository trust-root model
@@ -166,7 +168,9 @@ SECURITY.md                 vulnerability reporting
 
 ## Contributing external tests
 
-External tests are welcome. The preferred model is:
+External tests are welcome. **First contribution? Start with [EXTERNAL-TEST-QUICKSTART.md](EXTERNAL-TEST-QUICKSTART.md) and copy [`tests/_template/`](tests/_template/).**
+
+The preferred model is:
 
 1. fork the repository;
 2. add a new test or a new version of an existing test;
