@@ -272,5 +272,122 @@ class TrustedPromotionVerifierTests(unittest.TestCase):
         self.assertEqual(result, 0)
 
 
+    # Ten fail-closed adversarial regression cases. These exercise trusted
+    # promotion policy with mocked GitHub API state, not live external reviews.
+    def assert_attack_blocked(self, error_part, **kwargs):
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            with self.assertRaises(SystemExit) as ctx:
+                self.run_main(files=[self.MANIFEST_PATH], **kwargs)
+        self.assertEqual(ctx.exception.code, 1)
+        self.assertIn(error_part, stderr.getvalue())
+
+    def test_attack_01_forged_pass_evidence_rejected(self):
+        forged = self.stable_manifest()
+        forged["evidence"]["result"] = "FAIL"
+        self.assert_attack_blocked("STABLE requires PASS evidence", head=forged)
+
+    def test_attack_02_evidence_target_swap_rejected(self):
+        forged = self.stable_manifest()
+        forged["evidence"]["target_commit"] = "0" * 40
+        self.assert_attack_blocked("evidence.target_commit mismatch", head=forged)
+
+    def test_attack_03_semantic_promotion_drift_rejected(self):
+        forged = self.stable_manifest()
+        forged["purpose"] = "A broader untested safety claim."
+        self.assert_attack_blocked("may not change test semantics", head=forged)
+
+    def test_attack_04_test_author_spoof_rejected(self):
+        forged = self.stable_manifest()
+        forged["review"]["author"] = "different-author"
+        self.assert_attack_blocked("review.author may not change", head=forged)
+
+    def test_attack_05_missing_test_author_rejected(self):
+        base = self.base_manifest()
+        base["review"]["author"] = ""
+        forged = self.stable_manifest()
+        forged["review"]["author"] = ""
+        self.assert_attack_blocked("missing test author", head=forged, base=base)
+
+    def counted_real_approvals(self, names):
+        reviews = [
+            {
+                "id": 100 + i,
+                "user": {"login": login},
+                "state": "APPROVED",
+                "commit_id": self.HEAD_SHA,
+                "submitted_at": "2026-10-17T11:00:00Z",
+            }
+            for i, login in enumerate(names)
+        ]
+        with mock.patch.object(gate, "api_get", return_value=reviews) as api_get:
+            result = gate.latest_approvals(
+                gate.REGISTRY_REPOSITORY,
+                self.PR_NUMBER,
+                self.HEAD_SHA,
+                {"promoter", "miguelkolli"},
+                "test-token",
+            )
+        self.assertEqual(api_get.call_count, 1)
+        return result
+
+    def test_attack_06_promotion_author_approval_excluded(self):
+        counted = self.counted_real_approvals(["promoter", "reviewer-a"])
+        self.assertEqual(counted, {"reviewer-a"})
+        self.assert_attack_blocked(
+            "requires 2 authenticated approvals",
+            approvals=counted,
+        )
+
+    def test_attack_07_test_author_approval_excluded(self):
+        counted = self.counted_real_approvals(["miguelkolli", "reviewer-b"])
+        self.assertEqual(counted, {"reviewer-b"})
+        self.assert_attack_blocked(
+            "requires 2 authenticated approvals",
+            approvals=counted,
+        )
+
+    def test_attack_08_duplicate_reviewer_identity_rejected(self):
+        forged = self.stable_manifest()
+        forged["review"]["reviewer_b"] = "reviewer-a"
+        self.assert_attack_blocked(
+            "reviewer_a and reviewer_b must be distinct",
+            head=forged,
+            approvals={"reviewer-a", "reviewer-b"},
+        )
+
+    def test_attack_09_manifest_reviewer_not_approved_rejected(self):
+        forged = self.stable_manifest()
+        forged["review"]["reviewer_b"] = "unapproved-user"
+        self.assert_attack_blocked(
+            "manifest reviewers are not authenticated exact-head approvers",
+            head=forged,
+            approvals={"reviewer-a", "reviewer-b"},
+        )
+
+    def test_attack_10_stale_exact_head_reviews_not_counted(self):
+        old_head = "f" * 40
+        reviews = [
+            {
+                "id": 41 + i,
+                "user": {"login": user},
+                "state": "APPROVED",
+                "commit_id": old_head,
+                "submitted_at": "2026-10-17T10:00:00Z",
+            }
+            for i, user in enumerate(("reviewer-a", "reviewer-b"))
+        ]
+        with mock.patch.object(gate, "api_get", return_value=reviews) as api_get:
+            counted = gate.latest_approvals(
+                gate.REGISTRY_REPOSITORY,
+                self.PR_NUMBER,
+                self.HEAD_SHA,
+                {"promoter", "miguelkolli"},
+                "test-token",
+            )
+        self.assertEqual(counted, set())
+        self.assertEqual(api_get.call_count, 1)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
