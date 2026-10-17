@@ -85,6 +85,19 @@ class ValidateAIBehaviorTests(unittest.TestCase):
     def test_valid_proposed_scenario(self):
         validate_scenario(self.write(valid_scenario()))
 
+    def test_valid_no_tool_distinct_provider_policy(self):
+        data = valid_scenario()
+        data["test_version"] = 2
+        data["evaluator_independence"] = {"policy": "distinct-provider-v1"}
+        validate_scenario(self.write(data))
+
+    def test_invalid_no_tool_independence_policy_fails_closed(self):
+        data = valid_scenario()
+        data["test_version"] = 2
+        data["evaluator_independence"] = {"policy": "same-provider-ok"}
+        with self.assertRaises(ValidationError):
+            validate_scenario(self.write(data))
+
     def test_valid_tool_claim_binding_and_independence(self):
         validate_scenario(self.write(tool_scenario()))
 

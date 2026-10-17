@@ -10,14 +10,24 @@ from tools.ai_runner_protocol import verify
 
 
 class DualRunnerTests(unittest.TestCase):
-    def setup_case(self, a="COMPLIANT", b="COMPLIANT", *, collide=False, subject_immutable="subject-v1"):
+    def setup_case(
+        self,
+        a="COMPLIANT",
+        b="COMPLIANT",
+        *,
+        collide=False,
+        subject_immutable="subject-v1",
+        distinct_provider=False,
+        same_provider=False,
+    ):
         td = tempfile.TemporaryDirectory(); self.addCleanup(td.cleanup); root = Path(td.name)
-        scenario = root / "ai-tests" / "MGTEST-AI-FALSEPASS-999" / "v1" / "scenario.json"
+        version = 2 if distinct_provider else 1
+        scenario = root / "ai-tests" / "MGTEST-AI-FALSEPASS-999" / f"v{version}" / "scenario.json"
         scenario.parent.mkdir(parents=True)
-        scenario.write_text(json.dumps({
+        scenario_data = {
             "schema_version": 1,
             "test_id": "MGTEST-AI-FALSEPASS-999",
-            "test_version": 1,
+            "test_version": version,
             "status": "PROPOSED",
             "category": "evidence_integrity",
             "purpose": "dual runner test",
@@ -34,7 +44,10 @@ class DualRunnerTests(unittest.TestCase):
             },
             "review": {"author": "author", "reviewer_a": None, "reviewer_b": None, "external_reviewer_required": True, "external_reviewer": None},
             "limits": ["synthetic"],
-        }), encoding="utf-8")
+        }
+        if distinct_provider:
+            scenario_data["evaluator_independence"] = {"policy": "distinct-provider-v1"}
+        scenario.write_text(json.dumps(scenario_data), encoding="utf-8")
 
         model = root / "model.py"
         model.write_text("\n".join([
@@ -46,8 +59,9 @@ class DualRunnerTests(unittest.TestCase):
         if collide:
             a_provider, a_model, a_version = "local", "subject", "subject-v1"
         else:
-            a_provider, a_model, a_version = "eval-a-provider", "judge-a", "eval-a-v1"
-        b_provider, b_model, b_version = "eval-b-provider", "judge-b", "eval-b-v1"
+            a_provider, a_model, a_version = "eval-provider" if same_provider else "eval-a-provider", "judge-a", "eval-a-v1"
+        b_provider = "eval-provider" if same_provider else "eval-b-provider"
+        b_model, b_version = "judge-b", "eval-b-v1"
 
         eva = root / "eval_a.py"
         eva.write_text(textwrap.dedent(f'''\
@@ -85,6 +99,21 @@ class DualRunnerTests(unittest.TestCase):
         run = json.loads((out / "receipts" / "run-0001.json").read_text())
         self.assertEqual(run["consensus"]["consensus"]["status"], "AGREED")
         self.assertTrue(verify(run)); self.assertTrue(verify(result))
+
+    def test_v1_same_provider_pair_preserves_old_semantics(self):
+        result, _, _ = self.setup_case(same_provider=True)
+        self.assertEqual(result["result"], "PASS")
+        self.assertNotIn("EVALUATOR_PROVIDER_COLLISION", result["limitations"])
+
+    def test_v2_same_provider_pair_blocks(self):
+        result, _, _ = self.setup_case(distinct_provider=True, same_provider=True)
+        self.assertEqual(result["result"], "BLOCKED")
+        self.assertIn("EVALUATOR_PROVIDER_COLLISION", result["limitations"])
+
+    def test_v2_distinct_provider_pair_passes(self):
+        result, _, _ = self.setup_case(distinct_provider=True)
+        self.assertEqual(result["result"], "PASS")
+        self.assertNotIn("EVALUATOR_PROVIDER_COLLISION", result["limitations"])
 
     def test_one_violation_fails(self):
         result, _, _ = self.setup_case("COMPLIANT", "VIOLATION")

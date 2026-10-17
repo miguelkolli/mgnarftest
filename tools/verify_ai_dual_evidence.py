@@ -27,7 +27,7 @@ DUAL_BLOCKING = {
     "EVALUATOR_A_ADAPTER_UNBOUND", "EVALUATOR_B_ADAPTER_UNBOUND",
     "EVALUATOR_A_IDENTITY_DRIFT", "EVALUATOR_B_IDENTITY_DRIFT",
     "EVALUATOR_PAIR_IDENTITY_COLLISION", "EVALUATOR_A_SUBJECT_IDENTITY_COLLISION",
-    "EVALUATOR_B_SUBJECT_IDENTITY_COLLISION",
+    "EVALUATOR_B_SUBJECT_IDENTITY_COLLISION", "EVALUATOR_PROVIDER_COLLISION",
 }
 KNOWN_DUAL_LIMITATIONS = DUAL_BLOCKING | {
     "MGTEST_RUNNER_COMMIT_UNAVAILABLE", "SUBJECT_MODEL_VERSION_MUTABLE_OR_UNAVAILABLE",
@@ -71,6 +71,10 @@ def _verify_eval_record(value, transcript_reason, where):
     if not isinstance(transcript_reason, str) or sha256(transcript_reason.encode()) != value["reason_sha256"]:
         raise EvidenceError(f"{where}: reason hash mismatch")
     return binding
+
+
+def _requires_distinct_providers(raw):
+    return raw.get("evaluator_independence", {}).get("policy") == "distinct-provider-v1"
 
 
 def pre_allowed_result(raw, counts, total, limitations):
@@ -229,6 +233,8 @@ def verify_bundle(scenario_path, bundle_dir, expected_mgtest_commit=None):
             if receipt["result"] != consensus["consensus"]["result"]:
                 raise EvidenceError(f"{path}: run result does not match consensus")
             limitations.update(consensus["consensus"]["blockers"])
+            if _requires_distinct_providers(raw) and a_binding["provider"] == b_binding["provider"]:
+                limitations.add("EVALUATOR_PROVIDER_COLLISION")
             if first_a is None:
                 first_a = a_binding
             elif a_binding != first_a:

@@ -10,7 +10,7 @@ Each scenario lives at:
 ai-tests/<test-id>/v<version>/scenario.json
 ```
 
-Current proposed scenarios:
+Current proposed test IDs:
 
 - `MGTEST-AI-FALSEPASS-001` — resist claiming PASS when no test evidence exists.
 - `MGTEST-AI-PLEASURE-001` — do not change factual/acceptance judgment to satisfy user preference.
@@ -24,10 +24,23 @@ Current proposed scenarios:
 - `MGTEST-AI-HANDOFF-001` — do not convert an unverified predecessor handoff into verified evidence.
 - `MGTEST-AI-TOOLFABRICATION-001` — do not fabricate tool results that were never observed.
 
-All current scenarios start as `PROPOSED` and model execution evidence is `UNVERIFIED`. A scenario definition is not a result.
+The registry currently contains **24 scenario versions across 11 test IDs**.
+
+For nine no-tool test IDs, v1 preserves the original evaluation semantics and v2 adds:
+
+```text
+evaluator_independence.policy = distinct-provider-v1
+```
+
+The dual runner therefore blocks same-provider evaluator pairs for those v2 versions, while the independent dual-evidence verifier recomputes the collision from verified evidence. Historical v1 semantics remain unchanged.
+
+`TOOLHONESTY` and `TOOLFABRICATION` separately use v2 for receipt-backed offline tools and v3 for deterministic final-claim binding plus the same distinct-provider evaluator policy.
+
+All current scenarios start as `PROPOSED` and real provider/model execution evidence is `UNVERIFIED`. A scenario definition or mock/local harness PASS is not a real model behavior result.
 
 See:
 
-- `AI-BEHAVIOR-SPEC.md` for model binding, repeated-run requirements, evaluation language and external-review rules.
+- `AI-BEHAVIOR-SPEC.md` for model binding, repeated-run requirements, evaluator independence, evaluation language and external-review rules.
 - `AI-COVERAGE.md` for the explicit coverage matrix.
-- `DEFERRED.md` for trust-root, live-provider and multi-subject work intentionally postponed while private-repository development continues.
+- `MULTI-SUBJECT.md` for provider-neutral multi-subject orchestration.
+- `DEFERRED.md` for trust-root and credentialed live-provider work that remains intentionally postponed during private-repository development.

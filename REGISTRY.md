@@ -45,25 +45,36 @@ AI behavior scenarios are model/provider-neutral definitions. Unlike gate tests,
 
 | Test ID | Version | Area | Status | Evidence |
 |---|---:|---|---|---|
-| `MGTEST-AI-FALSEPASS-001` | 1 | false PASS resistance | PROPOSED | UNVERIFIED; no credentialed model runs yet |
-| `MGTEST-AI-PLEASURE-001` | 1 | truth under user pressure | PROPOSED | UNVERIFIED; no credentialed model runs yet |
-| `MGTEST-AI-STALEEVIDENCE-001` | 1 | stale evidence binding | PROPOSED | UNVERIFIED; no credentialed model runs yet |
-| `MGTEST-AI-SELFAPPROVAL-001` | 1 | self-review vs independent review | PROPOSED | UNVERIFIED; no credentialed model runs yet |
+| `MGTEST-AI-FALSEPASS-001` | 1 | false PASS resistance, original semantics | PROPOSED | UNVERIFIED; no credentialed model runs yet |
+| `MGTEST-AI-FALSEPASS-001` | 2 | false PASS + distinct-provider evaluators | PROPOSED / EXECUTABLE | local/mock harness evidence only; live provider UNVERIFIED |
+| `MGTEST-AI-PLEASURE-001` | 1 | truth under user pressure, original semantics | PROPOSED | UNVERIFIED; no credentialed model runs yet |
+| `MGTEST-AI-PLEASURE-001` | 2 | truth under pressure + distinct-provider evaluators | PROPOSED / EXECUTABLE | local/mock harness evidence only; live provider UNVERIFIED |
+| `MGTEST-AI-STALEEVIDENCE-001` | 1 | stale evidence binding, original semantics | PROPOSED | UNVERIFIED; no credentialed model runs yet |
+| `MGTEST-AI-STALEEVIDENCE-001` | 2 | stale evidence + distinct-provider evaluators | PROPOSED / EXECUTABLE | local/mock harness evidence only; live provider UNVERIFIED |
+| `MGTEST-AI-SELFAPPROVAL-001` | 1 | self-review vs independent review, original semantics | PROPOSED | UNVERIFIED; no credentialed model runs yet |
+| `MGTEST-AI-SELFAPPROVAL-001` | 2 | self-review + distinct-provider evaluators | PROPOSED / EXECUTABLE | local/mock harness evidence only; live provider UNVERIFIED |
 | `MGTEST-AI-TOOLHONESTY-001` | 1 | tool-use honesty, prompt baseline | PROPOSED | UNVERIFIED; no credentialed model runs yet |
 | `MGTEST-AI-TOOLHONESTY-001` | 2 | receipt-backed offline tool honesty | PROPOSED / EXECUTABLE | local/mock harness evidence only; live provider UNVERIFIED |
 | `MGTEST-AI-TOOLHONESTY-001` | 3 | deterministic final claim + distinct-provider evaluators | PROPOSED / EXECUTABLE | local/mock harness evidence only; live provider UNVERIFIED |
-| `MGTEST-AI-AUTHORITY-001` | 1 | unauthenticated bypass pressure | PROPOSED | UNVERIFIED; no credentialed model runs yet |
-| `MGTEST-AI-SCOPE-001` | 1 | frozen-scope preservation | PROPOSED | UNVERIFIED; no credentialed model runs yet |
-| `MGTEST-AI-CONFLICT-001` | 1 | instruction conflict | PROPOSED | UNVERIFIED; no credentialed model runs yet |
-| `MGTEST-AI-HIDDENSTATE-001` | 1 | hidden/private state assumptions | PROPOSED | UNVERIFIED; no credentialed model runs yet |
-| `MGTEST-AI-HANDOFF-001` | 1 | predecessor handoff integrity | PROPOSED | UNVERIFIED; no credentialed model runs yet |
+| `MGTEST-AI-AUTHORITY-001` | 1 | unauthenticated bypass pressure, original semantics | PROPOSED | UNVERIFIED; no credentialed model runs yet |
+| `MGTEST-AI-AUTHORITY-001` | 2 | bypass pressure + distinct-provider evaluators | PROPOSED / EXECUTABLE | local/mock harness evidence only; live provider UNVERIFIED |
+| `MGTEST-AI-SCOPE-001` | 1 | frozen-scope preservation, original semantics | PROPOSED | UNVERIFIED; no credentialed model runs yet |
+| `MGTEST-AI-SCOPE-001` | 2 | scope preservation + distinct-provider evaluators | PROPOSED / EXECUTABLE | local/mock harness evidence only; live provider UNVERIFIED |
+| `MGTEST-AI-CONFLICT-001` | 1 | instruction conflict, original semantics | PROPOSED | UNVERIFIED; no credentialed model runs yet |
+| `MGTEST-AI-CONFLICT-001` | 2 | instruction conflict + distinct-provider evaluators | PROPOSED / EXECUTABLE | local/mock harness evidence only; live provider UNVERIFIED |
+| `MGTEST-AI-HIDDENSTATE-001` | 1 | hidden/private state assumptions, original semantics | PROPOSED | UNVERIFIED; no credentialed model runs yet |
+| `MGTEST-AI-HIDDENSTATE-001` | 2 | hidden-state honesty + distinct-provider evaluators | PROPOSED / EXECUTABLE | local/mock harness evidence only; live provider UNVERIFIED |
+| `MGTEST-AI-HANDOFF-001` | 1 | predecessor handoff integrity, original semantics | PROPOSED | UNVERIFIED; no credentialed model runs yet |
+| `MGTEST-AI-HANDOFF-001` | 2 | handoff integrity + distinct-provider evaluators | PROPOSED / EXECUTABLE | local/mock harness evidence only; live provider UNVERIFIED |
 | `MGTEST-AI-TOOLFABRICATION-001` | 1 | tool-result fabrication, prompt baseline | PROPOSED | UNVERIFIED; no credentialed model runs yet |
 | `MGTEST-AI-TOOLFABRICATION-001` | 2 | receipt-backed tool-result fabrication | PROPOSED / EXECUTABLE | local/mock harness evidence only; live provider UNVERIFIED |
 | `MGTEST-AI-TOOLFABRICATION-001` | 3 | deterministic final claim + distinct-provider evaluators | PROPOSED / EXECUTABLE | local/mock harness evidence only; live provider UNVERIFIED |
 
-Current scenario versions: **15 across 11 test IDs**.
+Current scenario versions: **24 across 11 test IDs**.
 
-AI behavior STABLE promotion requires two distinct authenticated reviewers and at least one declared external reviewer among them. The technical declaration does not by itself prove real-world independence. The current unprotected repository trust root blocks authenticated STABLE promotion and credentialed live tool execution.
+`distinct-provider-v1` is scenario-versioned. It applies to the nine no-tool v2 scenarios and the two tool v3 scenarios. Same-provider evaluator pairs produce `EVALUATOR_PROVIDER_COLLISION` and the aggregate remains `BLOCKED`; the independent dual-evidence verifier recomputes the collision from verified evaluator bindings. Historical v1 semantics remain unchanged.
+
+AI behavior STABLE promotion requires two distinct authenticated reviewers and at least one declared external reviewer among them. The technical provider-separation rule does not by itself prove real-world independence. The current unprotected repository trust root blocks authenticated STABLE promotion and credentialed live execution.
 
 ## Status language
 

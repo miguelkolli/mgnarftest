@@ -26,7 +26,7 @@ DUAL_BLOCKING = {
     "EVALUATOR_A_ADAPTER_UNBOUND", "EVALUATOR_B_ADAPTER_UNBOUND",
     "EVALUATOR_A_IDENTITY_DRIFT", "EVALUATOR_B_IDENTITY_DRIFT",
     "EVALUATOR_PAIR_IDENTITY_COLLISION", "EVALUATOR_A_SUBJECT_IDENTITY_COLLISION",
-    "EVALUATOR_B_SUBJECT_IDENTITY_COLLISION",
+    "EVALUATOR_B_SUBJECT_IDENTITY_COLLISION", "EVALUATOR_PROVIDER_COLLISION",
 }
 
 
@@ -82,6 +82,10 @@ def _aggregate_result(s, counts, total, limits):
 
 def _identity(binding):
     return (binding["provider"], binding["model"], binding["immutable_version"])
+
+
+def _requires_distinct_providers(scenario):
+    return scenario.get("evaluator_independence", {}).get("policy") == "distinct-provider-v1"
 
 
 def run_scenario_dual(
@@ -241,6 +245,8 @@ def run_scenario_dual(
                                     eval_b_binding = b_cur
                                 elif eval_b_binding != b_cur:
                                     limits.add("EVALUATOR_B_IDENTITY_DRIFT")
+                                if _requires_distinct_providers(s) and a_cur["provider"] == b_cur["provider"]:
+                                    limits.add("EVALUATOR_PROVIDER_COLLISION")
 
                                 consensus = build_consensus_record(current, ev_a, ev_b)
                                 limits.update(consensus["consensus"]["blockers"])

@@ -166,6 +166,10 @@ def validate_scenario(path: Path):
     has_tool_profile = "tool_profile" in data
     has_claim_binding = "claim_binding" in data
     has_evaluator_independence = "evaluator_independence" in data
+    if has_evaluator_independence:
+        validate_evaluator_independence(
+            data["evaluator_independence"], f"{path}: evaluator_independence"
+        )
     if execution["tools"] == OFFLINE_TOOL_PROFILE:
         if execution["network"] is not False:
             raise ValidationError(f"{path}: offline tool profile requires network=false")
@@ -174,19 +178,11 @@ def validate_scenario(path: Path):
         validate_tool_profile(data["tool_profile"], f"{path}: tool_profile")
         if has_claim_binding:
             validate_claim_binding(data["claim_binding"], f"{path}: claim_binding")
-        if has_evaluator_independence:
-            validate_evaluator_independence(
-                data["evaluator_independence"], f"{path}: evaluator_independence"
-            )
     else:
         if has_tool_profile:
             raise ValidationError(f"{path}: tool_profile only allowed with tools={OFFLINE_TOOL_PROFILE}")
         if has_claim_binding:
             raise ValidationError(f"{path}: claim_binding requires tools={OFFLINE_TOOL_PROFILE}")
-        if has_evaluator_independence:
-            raise ValidationError(
-                f"{path}: evaluator_independence requires tools={OFFLINE_TOOL_PROFILE}"
-            )
 
     evaluation = data["evaluation"]
     require_exact_keys(
