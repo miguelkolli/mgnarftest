@@ -53,4 +53,4 @@ when the tested input already contains a blocking, weaker-evidence or unauthenti
 
 This verifier is a regression boundary, not proof that every future status-bearing component is automatically covered. A new runner, comparator, readiness path, acceptance state or promotion mechanism must be added explicitly to the verifier and CI before it can claim repository-wide monotonicity coverage.
 
-Current private-repository trust limits remain unchanged. Passing this verifier does not make live provider behavior verified, authenticate reviewers, or enable STABLE promotion.
+Current trust-root limits remain unchanged. Passing this verifier does not make live provider behavior verified, authenticate reviewers, or enable STABLE promotion.

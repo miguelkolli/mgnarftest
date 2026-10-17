@@ -1,10 +1,10 @@
 # Deferred work
 
-These items are intentionally **not blockers** for continued private-repository development of MGnarfTest. They become prerequisites only for the trust or execution claim they govern.
+These items are intentionally **not blockers** for continued MGnarfTest development. They become prerequisites only for the trust or execution claim they govern.
 
 ## Repository trust root
 
-- Make `miguelkolli/mgnarftest` public when the test system is mature enough for external use, or use a private-repository plan that supports the required enforceable controls.
+- Repository visibility is not trust-root enforcement. Public visibility may make additional GitHub protection controls available, but visibility alone does not authorize STABLE promotion.
 - Enable enforceable `main` protection/rulesets when the repository/account plan supports it.
 - Require pull requests, two authenticated approvals, stale-approval dismissal and conversation resolution for governed promotion.
 - Re-run trust-root RECON after those controls exist; do not flip `STABLE_PROMOTION_ENABLED` merely because repository visibility or account plan changes.
@@ -21,7 +21,7 @@ Tool-enabled readiness v5 requires:
 - an `ACCEPTED` lifecycle record bound to the exact capability evidence;
 - authenticated acceptance identity proof from the protected trust root.
 
-The first four contracts are implemented. The last item remains deliberately unavailable in the current private/unprotected phase, so tool-enabled live readiness stays `BLOCKED` even if someone manufactures structurally valid ACCEPTED JSON records.
+The first four contracts are implemented. The last item remains deliberately unavailable while the repository trust root is unprotected, so tool-enabled live readiness stays `BLOCKED` even if someone manufactures structurally valid ACCEPTED JSON records.
 
 Before credentialed provider-tool execution can become `READY`:
 

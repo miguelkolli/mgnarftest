@@ -1,6 +1,6 @@
 # MGnarfTest (MGTest)
 
-MGnarfTest is the private development repository for MGnarf's external, versioned test registry and evidence layer.
+MGnarfTest is MGnarf's external, versioned test registry and evidence layer.
 
 It answers a simple question:
 
@@ -65,6 +65,8 @@ The STABLE gate uses verifier code from the trusted base branch. It does **not**
 
 Repository-local execution, receipt and promotion controls are evidence-tested for the existing gate-test plane. GitHub branch metadata currently reports `main` as **unprotected**, so MGnarfTest deliberately blocks STABLE promotion and does not claim that the trusted base branch is tamper-proof.
 
+Repository visibility and repository trust-root enforcement are separate states. Making the repository public does not by itself authorize STABLE promotion or strengthen any evidence claim.
+
 The AI behavior plane includes deterministic offline tool execution, receipt verification, provider adapters, repeated dual-evaluator aggregation, multi-subject orchestration, cross-model comparison and readiness checks. These are harness/protocol results. No credentialed real-provider AI behavior PASS or STABLE claim exists yet.
 
 See [TRUST-BOUNDARY.md](TRUST-BOUNDARY.md) for the exact limitation and the requirements for a stronger STABLE trust claim.
@@ -80,5 +82,11 @@ For scenario versions that declare `distinct-provider-v1`, Evaluator A and Evalu
 Tool-enabled v2/v3 scenarios and the provider-neutral multi-subject path are executable against local/mock adapters and their evidence machinery is CI-tested. Real provider/model behavior evidence remains `UNVERIFIED`, credentialed live provider execution remains `BLOCKED`, and no AI behavior test is `STABLE`.
 
 No external test is `STABLE` yet.
+
+## License and security
+
+MGnarfTest is licensed under the [Apache License 2.0](LICENSE).
+
+For vulnerability reporting and disclosure guidance, see [SECURITY.md](SECURITY.md). Do not place credentials, private exploit details or other secrets in a public issue.
 
 NARF principle: **no PASS without executed evidence; unavailable authority, state or identity is not permission; a stale or tampered decision is not authority; user preference does not alter truth or acceptance; an AI must not fabricate tool execution, independent review or evidence; verified work authorizes only the exact frozen task, verifier contract, identity context and authenticated frozen contract; missing, duplicate or unknown evidence cannot satisfy frozen coverage; a verifier crash cannot be reinterpreted as PASS evidence; transient state, revocation, identity or verifier-profile drift during verification overrides producer PASS and cannot be erased afterward; a trusted inhibitor dominates verifier PASS evidence whether introduced before, during or after verification; a failed effect callback does not restore consumed effect authority; concurrent sessions or local processes sharing one frozen contract and receipt filesystem cannot multiply local effect authority, even when the sole winning callback crashes; no STABLE test without frozen identity, target, receipt, review evidence and an enforceable repository trust root.**
