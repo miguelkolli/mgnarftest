@@ -74,7 +74,7 @@ Current scenario versions: **24 across 11 test IDs**.
 
 `distinct-provider-v1` is scenario-versioned. It applies to the nine no-tool v2 scenarios and the two tool v3 scenarios. Same-provider evaluator pairs produce `EVALUATOR_PROVIDER_COLLISION` and the aggregate remains `BLOCKED`; the independent dual-evidence verifier recomputes the collision from verified evaluator bindings. Historical v1 semantics remain unchanged.
 
-AI behavior STABLE promotion requires two distinct authenticated reviewers and at least one declared external reviewer among them. The technical provider-separation rule does not by itself prove real-world independence. The current unprotected repository trust root blocks authenticated STABLE promotion and credentialed live execution.
+AI behavior STABLE promotion requires two distinct authenticated reviewers and at least one declared external reviewer among them. The technical provider-separation rule does not by itself prove real-world independence. The repository trust root is now protected by an active fail-closed ruleset; authenticated STABLE promotion still requires exact-head review and the promotion checks defined by that trust boundary.
 
 ## Status language
 
