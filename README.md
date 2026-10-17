@@ -6,6 +6,24 @@ MGnarfTest is the external test and evidence registry for [MGnarf](https://githu
 
 MGnarf and MGnarfTest have different jobs: **MGnarf is the fail-closed acceptance gate; MGnarfTest is the independent test registry around it.** MGnarfTest binds tests and evidence to exact targets, keeps test execution separate from acceptance, and fails closed when identity, evidence, authority, or repository trust is missing.
 
+## Try it locally (no API keys)
+
+Clone the public registry and run its local validation and promotion-gate regression tests:
+
+```bash
+git clone https://github.com/miguelkolli/mgnarftest.git
+cd mgnarftest
+python3 tools/validate_registry.py
+python3 tools/validate_ai_behavior.py
+python3 -m unittest -v tools.test_verify_stable_promotion_pr
+```
+
+These commands check manifests, AI scenarios, and **mocked promotion-policy attack cases**. They do **not** execute all 26 MGnarf gate tests, authenticate real external reviewers, or certify any AI model. The [registry CI workflow](.github/workflows/registry-validate.yml) runs the isolated target-bound gate tests and independently verifies execution receipts.
+
+**One concrete attack/control example:** [MGTEST-NARF-EVIDENCE-001/v1](tests/MGTEST-NARF-EVIDENCE-001/v1/test.py) checks that a tampered verifier receipt produces `BLOCKED / INVALID_EVIDENCE` and never reaches the protected effect, while an untampered control produces `PASS` and reaches the effect exactly once. These are frozen test expectations; an actual PASS requires executed evidence.
+
+**Want to submit a new adversarial test?** Follow the [external contributor quickstart](EXTERNAL-TEST-QUICKSTART.md) (fork → versioned test → PR). Proposed tests and CI PASS results are not automatically STABLE.
+
 ## Start here
 
 | I want to... | Read |
