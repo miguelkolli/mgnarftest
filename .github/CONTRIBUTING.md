@@ -19,7 +19,7 @@ STABLE is an acceptance state, not a test result. Promotion is a separate PR aft
 A STABLE promotion PR may change only:
 
 - the promoted test manifest(s); and
-- `REGISTRY.md`.
+- [REGISTRY.md](../REGISTRY.md).
 
 It may not change `test.py`, workflows, verifier tools, schemas, target assumptions or other executable code. The trusted promotion gate rejects mixed promotion/development PRs.
 

@@ -127,4 +127,4 @@ external proposal
 
 The STABLE promotion PR may not change the test semantics or `test.py`; it is an evidence-and-acceptance transition, not another development PR.
 
-See `CONTRIBUTING.md` and `TRUST-BOUNDARY.md` for the authoritative rules.
+See the [contribution policy](../../.github/CONTRIBUTING.md) and [trust boundary](../governance/TRUST-BOUNDARY.md) for the authoritative rules.
