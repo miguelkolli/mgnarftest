@@ -144,7 +144,15 @@ def review_order(review: dict) -> tuple[str, int]:
     return submitted, review_id
 
 
+def canonical_login(login: str) -> str:
+    """Compare GitHub login identities case-insensitively (not as display names)."""
+    if not isinstance(login, str) or not login.strip():
+        die("missing or invalid GitHub login identity")
+    return login.casefold()
+
+
 def latest_approvals(repo: str, number: int, head_sha: str, excluded: set[str], token: str) -> set[str]:
+    excluded_logins = {canonical_login(login) for login in excluded}
     latest = {}
     page = 1
     while True:
@@ -158,6 +166,7 @@ def latest_approvals(repo: str, number: int, head_sha: str, excluded: set[str], 
             user = (review.get("user") or {}).get("login")
             if not user:
                 continue
+            user = canonical_login(user)
             marker = review_order(review)
             previous = latest.get(user)
             if previous is None or marker >= previous[0]:
@@ -168,7 +177,7 @@ def latest_approvals(repo: str, number: int, head_sha: str, excluded: set[str], 
 
     return {
         user for user, (_, review) in latest.items()
-        if user not in excluded
+        if user not in excluded_logins
         and review.get("state") == "APPROVED"
         and review.get("commit_id") == head_sha
     }
@@ -303,10 +312,13 @@ def main() -> int:
         author = (head.get("review") or {}).get("author")
         if not isinstance(author, str) or not author.strip():
             die(f"{path}: missing test author")
-        authors.add(author)
+        authors.add(canonical_login(author))
         promoted.append((path, head))
 
-    approvals = latest_approvals(repo, number, head_sha, authors | {pr_author}, token)
+    approvals = {
+        canonical_login(login)
+        for login in latest_approvals(repo, number, head_sha, authors | {pr_author}, token)
+    }
     if len(approvals) < 2:
         die(f"exact promotion head requires 2 authenticated approvals excluding authors; found {sorted(approvals)}")
 
@@ -314,9 +326,13 @@ def main() -> int:
         review = manifest["review"]
         a = review.get("reviewer_a")
         b = review.get("reviewer_b")
-        if not isinstance(a, str) or not isinstance(b, str) or a == b:
+        if not isinstance(a, str) or not isinstance(b, str):
             die(f"{path}: reviewer_a and reviewer_b must be distinct identities")
-        if a not in approvals or b not in approvals:
+        a_login = canonical_login(a)
+        b_login = canonical_login(b)
+        if a_login == b_login:
+            die(f"{path}: reviewer_a and reviewer_b must be distinct identities")
+        if a_login not in approvals or b_login not in approvals:
             die(f"{path}: manifest reviewers are not authenticated exact-head approvers")
 
     print(
