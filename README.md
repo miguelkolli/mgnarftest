@@ -63,13 +63,13 @@ The STABLE gate uses verifier code from the trusted base branch. It does **not**
 
 ## Trust-root status
 
-Repository-local execution, receipt and promotion controls are evidence-tested for the existing gate-test plane. GitHub branch metadata currently reports `main` as **unprotected**, so MGnarfTest deliberately blocks STABLE promotion and does not claim that the trusted base branch is tamper-proof.
+MGnarfTest uses the public GitHub repository's protected `main` branch as its repository trust root. The active `MGnarfTest main protection` ruleset has no bypass actors, restricts deletion and non-fast-forward pushes, requires pull requests and resolved conversations, requires branches to be up to date, and requires the repository's governed GitHub Actions checks.
 
-Repository visibility and repository trust-root enforcement are separate states. Making the repository public does not by itself authorize STABLE promotion or strengthen any evidence claim.
+Trust-policy changes and STABLE promotion requests are independently checked against the live GitHub ruleset from trusted base-branch code. Repository visibility alone is not authority, and ruleset drift fails closed.
 
-The AI behavior plane includes deterministic offline tool execution, receipt verification, provider adapters, repeated dual-evaluator aggregation, multi-subject orchestration, cross-model comparison and readiness checks. These are harness/protocol results. No credentialed real-provider AI behavior PASS or STABLE claim exists yet.
+`PROTECTED` repository trust does **not** mean any AI provider/model behavior has passed. The AI behavior plane includes deterministic offline tool execution, receipt verification, provider adapters, repeated dual-evaluator aggregation, multi-subject orchestration, cross-model comparison and readiness checks. These are harness/protocol results. Real provider/model behavior remains `UNVERIFIED`; no credentialed live-provider behavior PASS claim exists.
 
-See [TRUST-BOUNDARY.md](TRUST-BOUNDARY.md) for the exact limitation and the requirements for a stronger STABLE trust claim.
+See [TRUST-BOUNDARY.md](TRUST-BOUNDARY.md) for the exact enforcement boundary.
 
 ## Current status
 
@@ -79,7 +79,7 @@ The AI behavior registry contains **24 versioned scenarios across 11 test IDs**,
 
 For scenario versions that declare `distinct-provider-v1`, Evaluator A and Evaluator B coming from the same provider is a blocking condition. The dual runner records `EVALUATOR_PROVIDER_COLLISION`, and the independent dual-evidence verifier recomputes that condition rather than trusting the aggregate receipt. Historical v1 no-tool semantics are not silently reinterpreted.
 
-Tool-enabled v2/v3 scenarios and the provider-neutral multi-subject path are executable against local/mock adapters and their evidence machinery is CI-tested. Real provider/model behavior evidence remains `UNVERIFIED`, credentialed live provider execution remains `BLOCKED`, and no AI behavior test is `STABLE`.
+Tool-enabled v2/v3 scenarios and the provider-neutral multi-subject path are executable against local/mock adapters and their evidence machinery is CI-tested. The repository trust-root blocker can be removed only by the protected live-policy gate; authenticated live-tool acceptance is still not implemented, credentialed live execution remains deferred, and real provider/model behavior remains `UNVERIFIED`.
 
 No external test is `STABLE` yet.
 

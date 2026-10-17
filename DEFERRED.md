@@ -4,14 +4,13 @@ These items are intentionally **not blockers** for continued MGnarfTest developm
 
 ## Repository trust root
 
-- Repository visibility is not trust-root enforcement. Public visibility may make additional GitHub protection controls available, but visibility alone does not authorize STABLE promotion.
-- Enable enforceable `main` protection/rulesets when the repository/account plan supports it.
-- Require pull requests, two authenticated approvals, stale-approval dismissal and conversation resolution for governed promotion.
-- Re-run trust-root RECON after those controls exist; do not flip `STABLE_PROMOTION_ENABLED` merely because repository visibility or account plan changes.
+The public repository trust root is implemented as a protected `main` branch plus the active `MGnarfTest main protection` ruleset. Trust-policy changes and STABLE requests are verified against the live ruleset from trusted base-branch code. The policy requires no bypass actors, deletion/non-fast-forward restrictions, pull requests, resolved conversations, strict/up-to-date checks and the governed GitHub Actions checks.
+
+Repository protection removes only the repository-trust blocker. Every STABLE promotion still requires its own exact main-push evidence plus two authenticated exact-head approvals, and AI behavior STABLE additionally requires the declared external-review boundary.
 
 ## Credentialed live provider execution
 
-The readiness gate understands both normal no-tool subjects and the receipt-backed deterministic offline-tool subject mode. This does **not** authorize live tool execution.
+The readiness gate understands both normal no-tool subjects and the receipt-backed deterministic offline-tool subject mode. Repository trust protection does **not** itself authorize a provider call or prove model behavior.
 
 Tool-enabled readiness v5 requires:
 
@@ -21,11 +20,10 @@ Tool-enabled readiness v5 requires:
 - an `ACCEPTED` lifecycle record bound to the exact capability evidence;
 - authenticated acceptance identity proof from the protected trust root.
 
-The first four contracts are implemented. The last item remains deliberately unavailable while the repository trust root is unprotected, so tool-enabled live readiness stays `BLOCKED` even if someone manufactures structurally valid ACCEPTED JSON records.
+The first four structural contracts are implemented. Authenticated acceptance identity proof is still deliberately unavailable, so tool-enabled live readiness stays `BLOCKED` even after repository protection if someone manufactures structurally valid ACCEPTED JSON records.
 
 Before credentialed provider-tool execution can become `READY`:
 
-- repository trust root must be `PROTECTED`/`ENFORCED` and governed promotion enabled;
 - authenticated GitHub review state must prove the acceptance records' reviewer identities/review IDs;
 - exact MGnarfTest commit, evidence hashes, scenario hash, readiness-gate hash and provider/evaluator adapter hashes must remain bound;
 - stale reviews must become invalid after evidence/acceptance revision;
@@ -40,10 +38,10 @@ The structural acceptance validator enforces author/reviewer separation, two dis
 
 Repository-wide status-lattice v2 additionally proves that weaker lifecycle states cannot become effective authenticated acceptance authority, malformed/resealed status upgrades are rejected, and even a structurally valid `ACCEPTED` record remains non-authoritative while `authenticated_identity_verified=false`.
 
-Still deferred until the trust root is protected:
+Still deferred after repository trust-root protection:
 
 - verify reviewer identities and review IDs against authenticated GitHub review state;
-- generate/verify the trust-root receipt from a protected promotion workflow;
+- generate/verify the live-tool acceptance trust-root receipt from a protected workflow;
 - prove the external reviewer is outside the author's control rather than trusting a self-declared relation;
 - reject stale approvals automatically after any evidence/record revision using authenticated review state.
 
@@ -110,7 +108,7 @@ Any downstream component that receives a blocking state must fail closed; it mus
 
 ## External acceptance
 
-- Obtain two authenticated reviewers for STABLE promotion.
+- Obtain two authenticated reviewers for each STABLE promotion.
 - Ensure at least one verified external reviewer is outside the test author's control for AI behavior tests.
 - Keep scenario acceptance (`STABLE`) separate from execution result (`PASS`/`FAIL`/`BLOCKED`/`UNVERIFIED`).
 
