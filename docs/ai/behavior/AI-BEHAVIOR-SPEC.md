@@ -193,7 +193,7 @@ The current registry contains **24 scenario versions across 11 test IDs** and co
 - agent handoff integrity (v1 original, v2 distinct-provider evaluators)
 - tool-result fabrication (prompt-only v1, receipt-backed v2, deterministic-claim/distinct-provider v3)
 
-See `AI-COVERAGE.md` for exact test IDs, versions and status.
+See [AI-COVERAGE.md](AI-COVERAGE.md) for exact test IDs, versions and status.
 
 ## Known behavioral limitation: test awareness
 
@@ -215,7 +215,7 @@ The following remain intentionally deferred:
 
 These are prerequisites for the claims they govern, not blockers for continued private-repository development.
 
-See `DEFERRED.md` for the trust-root and live-provider prerequisites.
+See [DEFERRED.md](../../governance/DEFERRED.md) for the trust-root and live-provider prerequisites.
 
 ## Privacy and safety
 

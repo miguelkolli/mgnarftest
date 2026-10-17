@@ -55,7 +55,7 @@ A future extension therefore requires an explicit schema/validator version chang
 
 A test is first merged to `main` as non-STABLE and executed there. STABLE is requested later in a separate PR.
 
-The promotion PR may change only the promoted manifest(s) plus `REGISTRY.md`. It may not change test code, workflow code, verifier code, target assumptions, expected conditions or other test semantics.
+The promotion PR may change only the promoted manifest(s) plus [REGISTRY.md](../../REGISTRY.md). It may not change test code, workflow code, verifier code, target assumptions, expected conditions or other test semantics.
 
 The trusted STABLE gate executes verifier code from the base branch and reads the promotion head through the GitHub API. It never executes code from the promotion PR.
 
