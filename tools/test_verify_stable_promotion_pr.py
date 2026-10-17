@@ -389,5 +389,104 @@ class TrustedPromotionVerifierTests(unittest.TestCase):
         self.assertEqual(api_get.call_count, 1)
 
 
+    # New independent-authentication regression cases: GitHub logins are
+    # case-insensitive, including names recorded in PROPOSED test manifests.
+    def approval_reviews(self, entries):
+        return [
+            {
+                "id": index + 200,
+                "user": {"login": user},
+                "state": state,
+                "commit_id": self.HEAD_SHA,
+                "submitted_at": f"2026-10-18T10:{index:02d}:00Z",
+            }
+            for index, (user, state) in enumerate(entries)
+        ]
+
+    def test_attack_11_case_variant_test_author_must_not_approve(self):
+        reviews = self.approval_reviews([
+            ("miguelkolli", "APPROVED"),
+            ("reviewer-b", "APPROVED"),
+        ])
+        with mock.patch.object(gate, "api_get", return_value=reviews):
+            counted = gate.latest_approvals(
+                gate.REGISTRY_REPOSITORY,
+                self.PR_NUMBER,
+                self.HEAD_SHA,
+                {"MiGuElKoLlI", "promoter"},
+                "test-token",
+            )
+        self.assertEqual(counted, {"reviewer-b"})
+        self.assert_attack_blocked("requires 2 authenticated approvals", approvals=counted)
+
+    def test_attack_12_case_variant_pr_author_must_not_approve(self):
+        reviews = self.approval_reviews([
+            ("promoter", "APPROVED"),
+            ("reviewer-b", "APPROVED"),
+        ])
+        with mock.patch.object(gate, "api_get", return_value=reviews):
+            counted = gate.latest_approvals(
+                gate.REGISTRY_REPOSITORY,
+                self.PR_NUMBER,
+                self.HEAD_SHA,
+                {"ProMoTeR", "miguelkolli"},
+                "test-token",
+            )
+        self.assertEqual(counted, {"reviewer-b"})
+
+    def test_attack_13_case_variant_repeat_review_is_one_identity(self):
+        reviews = self.approval_reviews([
+            ("Reviewer-A", "APPROVED"),
+            ("reviewer-a", "APPROVED"),
+        ])
+        with mock.patch.object(gate, "api_get", return_value=reviews):
+            counted = gate.latest_approvals(
+                gate.REGISTRY_REPOSITORY,
+                self.PR_NUMBER,
+                self.HEAD_SHA,
+                {"promoter", "miguelkolli"},
+                "test-token",
+            )
+        self.assertEqual(counted, {"reviewer-a"})
+
+    def test_attack_14_case_variant_changes_requested_revokes_approval(self):
+        reviews = self.approval_reviews([
+            ("Reviewer-A", "APPROVED"),
+            ("reviewer-a", "CHANGES_REQUESTED"),
+        ])
+        with mock.patch.object(gate, "api_get", return_value=reviews):
+            counted = gate.latest_approvals(
+                gate.REGISTRY_REPOSITORY,
+                self.PR_NUMBER,
+                self.HEAD_SHA,
+                set(),
+                "test-token",
+            )
+        self.assertEqual(counted, set())
+
+    def test_attack_15_manifest_case_aliases_are_not_distinct(self):
+        head = self.stable_manifest()
+        head["review"]["reviewer_a"] = "Reviewer-A"
+        head["review"]["reviewer_b"] = "reviewer-a"
+        self.assert_attack_blocked(
+            "reviewer_a and reviewer_b must be distinct identities",
+            head=head,
+            approvals={"reviewer-a", "reviewer-b"},
+        )
+
+    def test_control_16_manifest_reviewer_case_aliases_match_valid_approvals(self):
+        head = self.stable_manifest()
+        head["review"]["reviewer_a"] = "Reviewer-A"
+        head["review"]["reviewer_b"] = "Reviewer-B"
+        self.assertEqual(
+            self.run_main(
+                files=[self.MANIFEST_PATH],
+                head=head,
+                approvals={"reviewer-a", "reviewer-b"},
+            ),
+            0,
+        )
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

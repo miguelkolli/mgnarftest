@@ -58,12 +58,12 @@ The activation claim is limited to repository governance. It does not prove any 
 
 ## STABLE promotion boundary
 
-A STABLE promotion is a separate PR. The trusted workflow checks out the exact base SHA rather than the promotion PR's code. The promotion verifier requires successful main-push evidence for the exact subject commit plus two authenticated exact-head approvals excluding the test author and PR author. AI behavior STABLE additionally requires the declared external-review boundary.
+A STABLE promotion is a separate PR. The trusted workflow checks out the exact base SHA rather than the promotion PR's code. The promotion verifier requires successful main-push evidence for the exact subject commit plus two authenticated exact-head approvals excluding the test author and PR author. GitHub account logins are compared case-insensitively throughout the reviewer exclusions, latest-review state, distinct-approver count, and manifest reviewer matching; capitalization must never create a second identity. AI behavior STABLE additionally requires the declared external-review boundary.
 
 No external test is automatically promoted by repository activation. At activation time, all existing external tests remain `PROPOSED` until an independent STABLE promotion satisfies the full promotion contract.
 
 ## Residual trust assumptions
 
-GitHub remains the hosting and identity authority for branch rules, check identities and authenticated reviews. Required status checks are bound to check context plus GitHub Actions integration; they are not a cryptographic identity for the workflow file itself. The trusted `pull_request_target` job reduces untrusted-head influence by checking out exact trusted base code, but repository-owner control of GitHub settings remains an ultimate administrative authority.
+GitHub remains the hosting and identity authority for branch rules, check identities and authenticated reviews. Case-insensitive GitHub login matching prevents capitalization-based identity reuse; it does **not** prove organizational independence or verify that the original PROPOSED test author field names the true human author. Independent review and provenance remain separate trust assumptions. Required status checks are bound to check context plus GitHub Actions integration; they are not a cryptographic identity for the workflow file itself. The trusted `pull_request_target` job reduces untrusted-head influence by checking out exact trusted base code, but repository-owner control of GitHub settings remains an ultimate administrative authority.
 
 NARF rule: configuration that is missing, stale, bypassable, broken at launch, or not merge-enforced is not authority.
