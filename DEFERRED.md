@@ -4,10 +4,10 @@ These items are intentionally **not blockers** for continued private-repository 
 
 ## Repository trust root
 
-- Make `miguelkolli/mgnarftest` public when the test system is mature enough for external use.
+- Make `miguelkolli/mgnarftest` public when the test system is mature enough for external use, or use a private-repository plan that supports the required enforceable controls.
 - Enable enforceable `main` protection/rulesets when the repository/account plan supports it.
 - Require pull requests, two authenticated approvals, stale-approval dismissal and conversation resolution for governed promotion.
-- Re-run trust-root RECON after those controls exist; do not flip `STABLE_PROMOTION_ENABLED` merely because the repository becomes public.
+- Re-run trust-root RECON after those controls exist; do not flip `STABLE_PROMOTION_ENABLED` merely because repository visibility or account plan changes.
 
 ## Credentialed live provider execution
 
@@ -38,12 +38,14 @@ Before credentialed provider-tool execution can become `READY`:
 
 The structural acceptance validator enforces author/reviewer separation, two distinct reviewers, exact evidence/commit review binding, an external approver for `ACCEPTED`, accepted revision, trust-root receipt and record hashing.
 
+Repository-wide status-lattice v2 additionally proves that weaker lifecycle states cannot become effective authenticated acceptance authority, malformed/resealed status upgrades are rejected, and even a structurally valid `ACCEPTED` record remains non-authoritative while `authenticated_identity_verified=false`.
+
 Still deferred until the trust root is protected:
 
 - verify reviewer identities and review IDs against authenticated GitHub review state;
 - generate/verify the trust-root receipt from a protected promotion workflow;
 - prove the external reviewer is outside the author's control rather than trusting a self-declared relation;
-- reject stale approvals automatically after any evidence/record revision.
+- reject stale approvals automatically after any evidence/record revision using authenticated review state.
 
 Therefore `STRUCTURALLY_VALID` is not authenticated acceptance, and readiness v5 treats it accordingly.
 
@@ -59,7 +61,7 @@ This removes the previous continuation-reconstruction gap, but **does not author
 
 ## Final-claim semantics
 
-The v3 tool-honesty and tool-fabrication scenarios now provide a narrow deterministic `claims-only-v1` binding. For those exact scenarios, the independent verifier can prove that the machine-readable final observed claim equals the receipt-backed tool result.
+The v3 tool-honesty and tool-fabrication scenarios provide a narrow deterministic `claims-only-v1` binding. For those exact scenarios, the independent verifier can prove that the machine-readable final observed claim equals the receipt-backed tool result.
 
 Still deferred:
 
@@ -71,13 +73,13 @@ Semantic evaluators remain necessary outside the frozen claims-only contract.
 
 ## Evaluator independence
 
-The v3 tool scenarios require Evaluator A and Evaluator B to come from different providers. Same-provider evaluator pairs are recorded as `EVALUATOR_PROVIDER_COLLISION` and the aggregate remains `BLOCKED`.
+Scenario-bound `distinct-provider-v1` is implemented for the nine no-tool v2 scenarios and the two tool v3 scenarios. Same-provider evaluator pairs are recorded as `EVALUATOR_PROVIDER_COLLISION`, the aggregate remains `BLOCKED`, and the independent dual-evidence verifier recomputes the collision from verified evaluator bindings. Historical no-tool v1 semantics remain unchanged.
 
 Still deferred:
 
 - proving organizational or training-data independence between providers;
 - measuring correlated evaluator error empirically across larger judge ensembles;
-- defining equivalent strong-independence policies for every older/no-tool scenario version without changing historical scenario semantics.
+- changing historical v1 scenario semantics, which is intentionally avoided rather than treated as unfinished work.
 
 ## Test awareness / benchmark contamination
 
@@ -95,9 +97,9 @@ Until then, a behavior PASS is evidence only for the frozen tested boundary and 
 
 ## Status monotonicity
 
-Repository-wide status-lattice verifier v1 is implemented and CI-covered. It independently exercises the current single-evaluator aggregate, dual-evaluator aggregate, receipt-backed tool aggregate, cross-model comparison, live-readiness plan and STABLE-promotion trust-root guard. Degraded or blocking inputs are required to remain non-promoting; they may not become `PASS`, `READY`, `STRONG`, authenticated `ACCEPTED` or `STABLE` authority.
+Repository-wide status-lattice verifier v2 is implemented and CI-covered. It independently exercises the current single-evaluator aggregate, dual-evaluator aggregate, receipt-backed tool aggregate, cross-model comparison, evidence acceptance lifecycle, live-readiness plan and STABLE-promotion trust-root guard. Degraded, weaker or unauthenticated inputs are required to remain non-promoting; they may not become `PASS`, `READY`, `STRONG`, authenticated `ACCEPTED` or `STABLE` authority.
 
-See `STATUS-LATTICE.md` for the exact v1 coverage boundary.
+See `STATUS-LATTICE.md` for the exact v2 coverage boundary.
 
 Still deferred:
 

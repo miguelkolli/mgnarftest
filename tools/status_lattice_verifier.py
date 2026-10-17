@@ -5,6 +5,11 @@ from pathlib import Path
 from tools import compare_ai_dual_bundles as comparison
 from tools.check_ai_live_readiness import build_plan
 from tools.enforce_trust_root import STABLE_PROMOTION_ENABLED, TRUST_ROOT_STATUS
+from tools.live_tool_evidence_acceptance import (
+    EvidenceAcceptanceError,
+    seal_record,
+    validate_record,
+)
 from tools.verify_ai_evidence import BLOCKING as SINGLE_BLOCKING
 from tools.verify_ai_evidence import pre_allowed_result as single_result
 from tools.verify_ai_dual_evidence import DUAL_BLOCKING
@@ -199,6 +204,93 @@ def verify_cross_model_comparison():
     return {"status": "PASS", "degraded_cases_checked": 4}
 
 
+def _acceptance_review(identity, review_id):
+    return {
+        "reviewer_identity": identity,
+        "review_id": review_id,
+        "reviewed_evidence_sha256": "2" * 64,
+        "reviewed_mgtest_commit": "a" * 40,
+        "decision": "APPROVED",
+    }
+
+
+def _acceptance_record(status):
+    reviewer_a = None
+    reviewer_b = None
+    if status in {"REVIEW-A", "REVIEW-B", "ACCEPTED"}:
+        reviewer_a = _acceptance_review("reviewer-a", "review-a-1")
+    if status in {"REVIEW-B", "ACCEPTED"}:
+        reviewer_b = _acceptance_review("reviewer-b", "review-b-1")
+    body = {
+        "schema_version": 1,
+        "record_type": "mgtest.ai.live-tool-evidence-acceptance",
+        "status": status,
+        "evidence_kind": "authorization",
+        "evidence_file_sha256": "1" * 64,
+        "evidence_sha256": "2" * 64,
+        "target_mgtest_commit": "a" * 40,
+        "author_identity": "author",
+        "reviewer_a": reviewer_a,
+        "reviewer_b": reviewer_b,
+        "external_reviewer_identity": "reviewer-b" if status == "ACCEPTED" else None,
+        "accepted_revision": 1 if status == "ACCEPTED" else None,
+        "trust_root_receipt_sha256": "3" * 64 if status == "ACCEPTED" else None,
+    }
+    return seal_record(body)
+
+
+def _effective_acceptance(validated):
+    if (
+        validated["lifecycle_status"] == "ACCEPTED"
+        and validated["authenticated_identity_verified"] is True
+    ):
+        return "ACCEPTED"
+    return "BLOCKED"
+
+
+def _expect_invalid_acceptance(record, label):
+    try:
+        validate_record(record)
+    except EvidenceAcceptanceError:
+        return
+    raise StatusLatticeError(f"{label}: invalid acceptance promotion was accepted")
+
+
+def verify_acceptance_lifecycle():
+    weak_states = ("PROPOSED", "REVIEW-A", "REVIEW-B", "NEEDS-REVISION", "REJECTED")
+    for state in weak_states:
+        validated = validate_record(_acceptance_record(state))
+        _require(validated["lifecycle_status"], state, f"acceptance {state} lifecycle")
+        _require(_effective_acceptance(validated), "BLOCKED", f"acceptance {state} authority")
+
+    for source in ("PROPOSED", "REVIEW-A", "REVIEW-B"):
+        promoted = dict(_acceptance_record(source))
+        promoted.pop("record_sha256")
+        promoted["status"] = "ACCEPTED"
+        _expect_invalid_acceptance(
+            seal_record(promoted),
+            f"acceptance invalid {source}->ACCEPTED",
+        )
+
+    accepted = validate_record(_acceptance_record("ACCEPTED"))
+    _require(accepted["lifecycle_status"], "ACCEPTED", "acceptance structural accepted")
+    _require(
+        accepted["authenticated_identity_verified"],
+        False,
+        "acceptance authenticated identity unavailable",
+    )
+    _require(
+        _effective_acceptance(accepted),
+        "BLOCKED",
+        "acceptance structural-only authority",
+    )
+    return {
+        "status": "PASS",
+        "non_authoritative_states_checked": len(weak_states) + 1,
+        "invalid_promotions_rejected": 3,
+    }
+
+
 def _readiness(scenario, trust_status, promotion_enabled):
     return build_plan(
         ROOT / scenario,
@@ -253,12 +345,13 @@ def run_all():
         "dual_aggregate": verify_dual_aggregate(),
         "tool_aggregate": verify_tool_aggregate(),
         "cross_model_comparison": verify_cross_model_comparison(),
+        "acceptance_lifecycle": verify_acceptance_lifecycle(),
         "live_readiness": verify_live_readiness(),
         "stable_promotion_guard": verify_stable_promotion_guard(),
     }
     return {
         "status": "PASS",
-        "verifier": "mgtest.status-lattice-v1",
+        "verifier": "mgtest.status-lattice-v2",
         "checks": checks,
     }
 
